@@ -27,7 +27,7 @@
 ## CURSEUR DE REALISME (reglage central, 16/11/2026)
 Sa zone est AU MILIEU. Trop stylise (totem 1, mascotte et cartoon 3) et trop realiste ou peint
 (illustration naturaliste 4-5, bestiaire « too much ») sont tous deux penalises.
-Zone cible : entre l'anguleux modele (6) et le pixel art propre realiste (7) : anatomie vraie
+Zone cible : entre l'anguleux modele (n°7 de l'essai 3, note contestee) et le pixel art propre realiste (7) : anatomie vraie
 et couleurs naturelles, MAIS formes simplifiees en plans nets (2-3 valeurs par plan), peu de
 couleurs (12-16), contour sombre franc, pas de rendu peint ni de texture grenue.
 La PETITE TAILLE fait partie du style : plus le sprite est grand, plus Codex y met de detail

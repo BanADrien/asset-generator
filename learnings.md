@@ -130,7 +130,7 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   l'image de reference jointe, « Anguleux pose » l'a presque recopiee (orange compris) : une
   reference de style tire vers la copie, preciser ce qui doit changer. Petits trous blancs
   (< 9 cases) entre les pattes gardes blancs par la reduction (crapaud doux) : a traiter.
-- 2026-11-16 - notes essai 3 : elance assis 7, anguleux modele 6, naturalistes peints 4-5,
+- 2026-11-16 - notes essai 3 : elance assis 7, anguleux modele 6 (note contestee ensuite), naturalistes peints 4-5,
   bestiaire « too much », poses dynamiques 3-4. Reglage central = CURSEUR DE REALISME, zone au
   milieu (plans nets, 12-16 couleurs, contour franc, petite taille ~64-80 px de large).
 - 2026-11-16 - essai 4 « anguleux realiste » (4 images, ~1 min, 4 en parallele) : la consigne
@@ -144,3 +144,6 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
 - 2026-11-16 - essai 6 : 3 retouches de la retouche n°3 (3, 4, 5 crans de realisme + bouche et
   gorge corrigees), design conserve sur les 3, ~1 min. Notes 4 -> 5 -> 6 a l'essai 5 : sur un
   design qui plait, monter le realisme par crans jusqu'a ce que la note redescende.
+- 2026-11-16 - « j'ai jamais dit qu'il etait a 6 » : une note de sa liste affichee sur la
+  planche suivante comme etiquette de reference l'a trompe. Ses notes sont RELATIVES a la
+  planche : remettre la reference SANS note et la lui faire renoter.

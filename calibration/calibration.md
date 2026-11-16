@@ -3,6 +3,11 @@
 Les juges ouvrent ces images (version `-x8`) comme ancres : ce sont des notes REELLES de
 l'utilisateur. A completer apres chaque livraison (demander sa note, ajouter une ligne).
 
+## Regle de methode : notes RELATIVES (16/11/2026)
+Ses notes sont RELATIVES a la planche qu'il regarde. Entre deux planches, seul l'ordre est
+fiable, et encore : toujours remettre l'image de reference sur la nouvelle planche et lui
+demander de la renoter avec les autres, sans afficher d'ancienne note.
+
 ## Regle de methode pour les interpretations (a appliquer avant toute lecture de ses choix)
 Ne deduire une preference que d'un choix entre des options qui s'opposent sur ce point. Si
 toutes les propositions partageaient un trait (ici la forme trapue), son choix ne dit rien sur
@@ -246,7 +251,8 @@ anguleux, rajoute plus de tests avec cette vision (pas trop non plus) ». -> 3 e
 
 ## Notes de l'essai des formes (essai 3, 16/11/2026)
 1 Elance assis 7 ; 2 Massif a grande gueule 5 ; 3 Feuille morte 4 ; 4 Pret a bondir 4 ; 5 Doux
-ton sur ton 4 ; 6 Bestiaire contraste 5 ; 7 Anguleux plus modele 6 ; 8 Anguleux pose 3 ;
+ton sur ton 4 ; 6 Bestiaire contraste 5 ; 7 Anguleux plus modele 6 (note contestee par l'utilisateur ensuite : « j'ai jamais dit qu'il
+etait a 6 » ; ne plus s'en servir comme ancre) ; 8 Anguleux pose 3 ;
 9 Anguleux en action 3.
 Ses mots : « essaye de faire un anguleux plus realiste, mais la le niveau de realisme global est
 trop eleve pour un jeu 2D pixel art, et le 6 j'en parle pas, c'est too much ».
@@ -254,7 +260,7 @@ trop eleve pour un jeu 2D pixel art, et le 6 j'en parle pas, c'est too much ».
 Lecture (interpretation de Claude ; options contrastees, lectures valides ; hypotheses marquees) :
 - CURSEUR DE REALISME, zone au milieu : trop stylise (totem 1, mascotte et cartoon 3) et trop
   realiste/peint (naturalistes 4-5, bestiaire « too much ») sont penalises. Cible : entre
-  l'anguleux modele (n°7 = 6) et le pixel art propre realiste (essai Codex x6 = 7, elance assis
+  l'anguleux modele (n°7, note contestee) et le pixel art propre realiste (essai Codex x6 = 7, elance assis
   = 7) : anatomie vraie, couleurs naturelles, formes simplifiees en plans nets, peu de
   couleurs, contour sombre franc, pas de rendu peint ni de texture grenue.
 - Forme (HYPOTHESE a confirmer) : l'elance assis droit (7) bat tous les trapus de cet essai
@@ -275,7 +281,7 @@ beaux et pas ergonomiques ».
 
 Lecture (interpretation de Claude) :
 - a) REFUTE : « anguleux + plus de realisme » ne monte pas. Les 4 sont sous le n°7 de
-  l'essai 3 (6) et sous les realistes propres (7).
+  l'essai 3 et sous les realistes propres (7).
 - b) Une silhouette fine et relevee, en petit format et simplifiee, se lit « grenouille ».
   L'elance assis de l'essai 3 (7) gardait une peau et des teintes de crapaud ; simplifie, il
   perd son identite. Un crapaud doit garder ses marqueurs : corps large, peau verruqueuse,
@@ -287,7 +293,7 @@ Lecture (interpretation de Claude) :
   l'anguleux supporte mal les 60 a 90 px.
 
 ## Critere « ergonomique » (parole de l'utilisateur, 16/11/2026)
-Sur le n°7 de l'essai 3 (« Anguleux plus modele », 6/10) : « pour moi ergonomique c'est une
+Sur le n°7 de l'essai 3 (« Anguleux plus modele », note contestee) : « pour moi ergonomique c'est une
 forme globale plus propre et definie, avec un style propre ; ce que j'aime bien dans celui-la,
 malgre le fait que sa bouche soit ouverte et qu'il soit pas assez realiste, c'est que sa forme
 globale est propre et son design est coherent ».
@@ -300,12 +306,14 @@ globale est propre et son design est coherent ».
   Lecon : quand un design plait, on le conserve et on ne retouche que les defauts cites.
 
 ## Notes de l'essai 5 (retouches du n°7, 16/11/2026)
-1 Gueule fermee 4 ; 2 + un cran de realisme 5 ; 3 + deux crans de realisme 6 (reference n°7 :
-6). Images : `crapaud-retouche7-1..3.png`.
+1 Gueule fermee 4 ; 2 + un cran de realisme 5 ; 3 + deux crans de realisme 6. Images :
+`crapaud-retouche7-1..3.png`. Ses mots ensuite : « j'ai jamais dit qu'il etait a 6 » (le n°7
+de reference) et « je prefere la 1 gueule fermee que la ref ». Ordre reel sur la planche :
+reference < retouche 1 (4) < retouche 2 (5) < retouche 3 (6). (Le « 6 » de la reference venait
+de la 7e note de sa liste pour l'essai 3, affichee a tort sur la planche.)
 Lecture (interpretation de Claude) :
 - Sur ce design, la note monte d'un point par cran de realisme (4 -> 5 -> 6) : le curseur n'a
   pas encore atteint son maximum ; continuer a monter jusqu'a ce que la note redescende.
-- Fermer la gueule a coute 2 points (reference 6 -> retouche 1 a 4). La gueule fermee telle
-  que dessinee est faible : ligne de bouche peu visible, grand bloc creme plat et en escalier
-  sous la tete ; sans la langue le crapaud perd aussi un peu de caractere. Il faut une bouche
-  fermee VRAIMENT dessinee et une gorge modelee.
+- La gueule fermee est PREFEREE a la gueule ouverte (« je prefere la 1 gueule fermee que la
+  ref »). Ameliorations de dessin quand meme demandees ensuite : bouche fermee vraiment tracee,
+  gorge modelee au lieu d'un bloc creme plat.
