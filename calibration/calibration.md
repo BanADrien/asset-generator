@@ -330,3 +330,11 @@ ACQUIS VALIDES (par lui) :
 - Forme : ce crapaud (grosse gorge, bien proportionne), gueule fermee.
 - Image cible principale : `references/cible/crapaud-cible-principale-1.png` et `-2.png`
   (remplacent le n°7 de l'essai 3 comme cible principale).
+
+## Essai 7 (meme crapaud, 6 styles de dessin) - parole de l'utilisateur
+« garde le 4 et le 6 » : styles RETENUS = 4 « Contour colore lumineux » et 6 « Clair de lune ».
+Pas de chiffres, pas d'avis explicite sur les 4 autres (trait epais BD, sans contour, retro 16
+bits trame, gravure terreuse) : ne rien en deduire.
+Copies : `references/cible/crapaud-style-contour-lumineux.png` et `crapaud-style-clair-de-lune.png`.
+Interpretation de Claude : les deux styles retenus sont ceux ou la LUMIERE est la plus
+travaillee (lisere lumineux, eclairage de nuit).

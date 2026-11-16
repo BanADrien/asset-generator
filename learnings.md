@@ -151,3 +151,7 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   generes separement, ~2 min : 6 styles distincts, forme conservee sur les 6. Le tramage
   retro a fait detecter une grille plus fine (122x80) ; « clair de lune » vire au bleu malgre
   « must stay brown-olive ».
+- 2026-11-16 - essai 7 : styles retenus = contour colore lumineux et clair de lune, les deux ou
+  la lumiere est la plus travaillee. L'utilisateur n'a aucune gestion de la lumiere pour ses
+  assets. PISTE (non implementee) : produire un sprite a eclairage neutre + une carte de
+  normales ou des calques de lumiere, pour que le jeu eclaire lui-meme (Phaser Light2D).
