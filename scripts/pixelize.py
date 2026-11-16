@@ -102,6 +102,23 @@ def simplify(hd, colors):
     return out
 
 
+def faces_left(hd):
+    """Heuristique de sens : la tete (oeil, haut du crane) est le cote ou se trouve la masse
+    du tiers superieur du sujet. Centre de cette masse a gauche du centre -> regarde a gauche.
+    L'utilisateur ne penalise pas l'orientation : ce n'est qu'une commodite."""
+    a = hd.getchannel("A")
+    bb = a.getbbox()
+    if not bb:
+        return False
+    x0, y0, x1, y1 = bb
+    top = a.crop((x0, y0, x1, y0 + max(1, (y1 - y0) // 3)))
+    px = top.load()
+    xs = [x for y in range(top.height) for x in range(top.width) if px[x, y] >= 128]
+    if not xs:
+        return False
+    return sum(xs) / len(xs) < (x1 - x0) * 0.45
+
+
 def run_pixel_fixer(cli, hd_path, height, width, palette, outline, detail):
     tmp = tempfile.mkdtemp(prefix="pf_")
     cmd = ["node", cli, hd_path, "--out", tmp, "--height", str(height), "--palette", palette,
@@ -289,14 +306,19 @@ def main():
     ap.add_argument("--palette", default=PALETTE)
     ap.add_argument("--pixel-fixer", default=DEFAULT_PF)
     ap.add_argument("--no-pixel-fixer", action="store_true")
-    ap.add_argument("--flip", action="store_true", help="miroir horizontal (sujet tourne du mauvais cote)")
+    ap.add_argument("--flip", action="store_true", help="= --orient flip")
+    ap.add_argument("--orient", default="auto", choices=["auto", "keep", "flip"],
+                    help="auto : miroir si le sujet semble regarder a gauche (heuristique)")
     ap.add_argument("--simplify", type=int, default=12, help="couleurs des aplats HD avant reduction (0 = non)")
     ap.add_argument("--method", default="cells", choices=["pixel-fixer", "cells", "cells2"],
                     help="cells = reduction par cellules avec priorite aux sombres (oeil, bouche, contour)")
     a = ap.parse_args()
 
     hd = simplify(cutout(a.src, a.bg_tol, a.mask_logo), a.simplify)
-    if a.flip:
+    orient = "flip" if a.flip else a.orient
+    if orient == "auto" and faces_left(hd):
+        orient = "flip"
+    if orient == "flip":
         hd = hd.transpose(Image.FLIP_LEFT_RIGHT)
     hd_path = os.path.splitext(a.out)[0] + ".hd.png"
     hd.save(hd_path)

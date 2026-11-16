@@ -31,3 +31,9 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   ou image source en silhouette tres simple (« flat icon, 3 colors »), ou retouche manuelle.
 - 2026-11-16 - mise en place - Pollinations anonyme : 1 image/min, 402 au-dela, logo en bas
   a droite ; AI Horde anonyme : 2 travaux en parallele max (429 sinon).
+- 2026-11-16 - REGLE PERMANENTE - apres chaque livraison, demander sa note a l'utilisateur
+  (et son prefere) et l'ajouter a `calibration/calibration.md` avec l'image : c'est ce qui
+  cale les juges sur son gout (v1 : ecart moyen 0,92 ; v2 avec ancres : 0,58).
+- 2026-11-16 - calibration - l'utilisateur veut du « detaille, realiste » ; ses reproches :
+  contours pas definis, peu de texture, elements mal distingues ; prefere l'essai 6 (masse
+  ronde, peau marbree). Le crapaud propre mais plat dessine en code est « nul ».

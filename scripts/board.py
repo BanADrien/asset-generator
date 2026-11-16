@@ -55,6 +55,8 @@ def main():
     ap.add_argument("--game", nargs="+", default=["crapaud_actuel", "agarica_actuel", "singe_actuel"])
     ap.add_argument("--refs", nargs="+", default=["cc0_froggy_spring", "cc0_frogs_aroach"])
     ap.add_argument("--label", default="")
+    ap.add_argument("--screen-scale", type=float, default=SCALE,
+                    help="px ecran par px du sprite : 64/24 (profil petit) ou 1 (profil detaille)")
     a = ap.parse_args()
 
     cand = load(a.cand)
@@ -66,17 +68,19 @@ def main():
     ground1x.alpha_composite(grass.crop((0, 0, 24, 8)), (0, 0))
     ground1x = ground1x.crop((0, 0, 24, 12))
 
-    # bande 1 : en jeu (echelle ecran), puis x2 pour lecture
-    b1 = strip([nearest(cand, SCALE)] + game, ground=nearest(ground1x, SCALE),
+    # bande 1 : en jeu (echelle ecran du profil), puis x2 pour lecture
+    b1 = strip([nearest(cand, a.screen_scale)] + game, ground=nearest(ground1x, SCALE),
                label="EN JEU (echelle ecran) : candidat | sprites IA actuels")
     b1 = nearest(b1, 2)
     # bande 2 : 1x natif
     b2 = strip([cand, tile] + refs, label="1x natif (affiche x2) : candidat | tuile du jeu | refs CC0")
     b2 = nearest(b2, 2)
-    # bande 3 : zoom x8 (meme grossissement pour tous)
-    z = 8
-    b3 = strip([nearest(cand, z), nearest(tile, z)] + [nearest(r, min(z, max(2, 260 // r.height))) for r in refs],
-               label="ZOOM x8 : candidat | tuile dessinee main | refs CC0 (zoom reduit si grandes)")
+    # bande 3 : zoom (x8 petit sprite, x4 grand) + sprite IA actuel du meme sujet a la meme hauteur
+    z = 8 if max(cand.size) <= 40 else 4
+    ai = game[0]
+    ai_big = ai.resize((max(1, round(ai.width * cand.height * z / ai.height)), cand.height * z), Image.LANCZOS)
+    b3 = strip([nearest(cand, z), ai_big, nearest(tile, z)] + [nearest(r, min(z, max(2, 260 // r.height))) for r in refs],
+               label=f"ZOOM x{z} : candidat | sprite IA actuel (meme hauteur) | tuile du jeu | refs CC0")
     W = max(b.width for b in (b1, b2, b3)) + 20
     H = b1.height + b2.height + b3.height + 60
     sheet = Image.new("RGBA", (W, H), (18, 14, 24, 255))

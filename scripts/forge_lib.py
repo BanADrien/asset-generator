@@ -94,3 +94,15 @@ def unique_path(folder, name):
         p = os.path.join(folder, f"{base}-{n}{ext}")
         n += 1
     return p
+
+
+# Profils de taille. "petit" = densite des tuiles (24-30 px de haut) ; "detaille" = taille des
+# personnages actuels du jeu (~64 px), plus de couleurs, reduction moins agressive.
+# Le profil par defaut reste "petit" tant que l'utilisateur n'a pas tranche.
+PROFILES = {
+    "petit": {"height": 24, "width": 32, "colors": (5, 20), "orphans": 0.12, "frag": 2, "noise": 0.55,
+              "simplify": 12, "max_colors": 12, "method": "cells", "screen_scale": 64 / 24},
+    "detaille": {"height": 60, "width": 80, "colors": (12, 48), "orphans": 0.18, "frag": 6, "noise": 0.65,
+                 "simplify": 40, "max_colors": 40, "method": "cells2", "screen_scale": 1.0},
+}
+DEFAULT_PROFILE = "petit"

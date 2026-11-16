@@ -46,3 +46,13 @@ texture, gradient background`
 | Couleurs qui virent (vert -> gris) | nommer les teintes de la palette dans le prompt |
 | Volume plat | prompt « strong top-left light, three tone shading » |
 | Detourage qui mange le sujet clair | fond « plain pure white » -> essayer « plain light grey background » + `--bg-tol 30` |
+
+## Profil detaille (~64 px) : viser les trois exigences de l'utilisateur
+- Prompt : `pixel art sprite, side view of a <sujet>, profile, <pose>, bold inked outlines,
+  clearly separated head, belly and legs, textured <matiere> skin, <couleurs>, <oeil>, white
+  background` ; negatif + `smooth plastic skin, blurry`.
+- Reduction : `--profile detaille` (cellules en 2 passes, 40 couleurs d'aplats, contour
+  exterieur). `--method pixel-fixer` garde plus de texture et de lignes interieures a cette
+  taille ; comparer les deux sur la meme image (`--reuse`) et garder le meilleur.
+- Point de depart de forme : l'essai 6 du crapaud (masse ronde, peau marbree), prefere de
+  l'utilisateur.

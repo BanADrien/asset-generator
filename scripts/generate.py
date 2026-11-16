@@ -1,7 +1,8 @@
 """Genere des images HD candidates avec un moteur gratuit sans compte.
 
 Moteurs :
-  horde        AI Horde (https://aihorde.net), cle anonyme publique "0000000000" (pas de compte),
+  horde        AI Horde (https://aihorde.net). Cle : AIHORDE_API_KEY, sinon "horde_api_key" de
+               config.local.json (jamais affichee), sinon cle anonyme publique "0000000000",
                modele "AlbedoBase XL (SDXL)" par defaut (suit bien la consigne ; la pixelisation
                vient apres). File communautaire : 2 travaux a la fois, ~30 s a 3 min par image.
   pollinations image.pollinations.ai, sans cle ; palier anonyme ~1 image/min,
@@ -29,14 +30,35 @@ def http(method, url, body=None, headers=None, timeout=120):
         return r.status, r.read(), dict(r.headers)
 
 
+ANON_KEY = "0000000000"
+
+
+def horde_key():
+    """Cle AI Horde, relue a chaque lancement : AIHORDE_API_KEY, puis "horde_api_key" de
+    config.local.json (non versionne), sinon cle anonyme publique. La cle n'est JAMAIS
+    affichee ni ecrite : seul le fait qu'une cle de compte est utilisee est journalise."""
+    k = os.environ.get("AIHORDE_API_KEY", "").strip()
+    if not k:
+        cfg = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.local.json")
+        try:
+            with open(cfg, encoding="utf-8") as f:
+                k = str(json.load(f).get("horde_api_key", "") or "").strip()
+        except Exception:
+            k = ""
+    return (k, True) if k and k != ANON_KEY else (ANON_KEY, False)
+
+
 def horde(prompt, negative, seeds, out, model, size, steps, cfg, log):
     full = prompt + (" ### " + negative if negative else "")
-    # Le palier anonyme accepte 2 travaux a la fois : on soumet au fil des places libres.
+    key, account = horde_key()
+    log["cle_compte"] = account
+    # Palier anonyme : 2 travaux a la fois ; avec un compte, priorite plus haute, 3 a la fois.
+    slots = 3 if account else 2
     todo = list(seeds)
     t0 = time.time()
     pending = {}
     while (todo or pending) and time.time() - t0 < 900:
-        while todo and len(pending) < 2:
+        while todo and len(pending) < slots:
             s = todo[0]
             body = {
                 "prompt": full,
@@ -46,7 +68,7 @@ def horde(prompt, negative, seeds, out, model, size, steps, cfg, log):
                 "trusted_workers": False, "slow_workers": True,
             }
             try:
-                _, b, _ = http("POST", HORDE + "/generate/async", body, {"apikey": "0000000000"})
+                _, b, _ = http("POST", HORDE + "/generate/async", body, {"apikey": key})
                 pending[s] = json.loads(b)["id"]
                 todo.pop(0)
             except urllib.error.HTTPError as e:

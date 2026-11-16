@@ -16,6 +16,10 @@ Claude Code le detecte au demarrage suivant (il se declenche sur « sprite », �
 - Python 3 avec Pillow (pas de numpy). Sur ce poste : le Python fourni avec pgAdmin, lance
   avec `-I`. Rien a installer.
 - Acces Internet pour la generation (AI Horde / Pollinations, gratuits).
+- Optionnel : une cle de compte AI Horde (gratuite) pour sortir de la file anonyme, tres lente
+  aux heures chargees. La mettre dans `config.local.json` (non versionne), champ
+  `horde_api_key`, ou dans la variable `AIHORDE_API_KEY`. Sans cle, le skill utilise la cle
+  anonyme publique. La cle n'est jamais affichee ni ecrite dans les sorties.
 - Optionnel : pixel-fixer (https://github.com/BanADrien/pixel-fixer, Node 18+ et `npm install`)
   pour `--method pixel-fixer`. Indiquer son chemin dans `config.local.json` (non versionne) :
   `{"pixel_fixer_cli": "C:/chemin/vers/pixel-fixer/cli.js"}` ou dans la variable
@@ -26,6 +30,9 @@ Claude Code le detecte au demarrage suivant (il se declenche sur « sprite », �
 - `style/` : guide de style tire des assets du jeu, palette, planche d'exemples.
 - `references/` : grille de notation, prompt des juges, conseils de prompt, sources.
 - `scripts/` : generation, pixelisation, mesures, planches, historique, livraison.
+- `calibration/` : sprites notes par l'utilisateur, ancres des juges (`calibration.md`).
+- Deux profils de taille : `petit` (24-30 px, densite des tuiles, par defaut) et `detaille`
+  (~64 px, taille des personnages actuels).
 
 ## Licences des references
 Les images de `references/img/` sont toutes en CC0 (domaine public) : Spring Spring,

@@ -19,7 +19,14 @@ notation qui ramenent chaque image vers le style du jeu. Planche : `planche-exem
 - Moteur : Phaser 3, canvas 960x540, vue de profil (plateformer), sprites tournes vers la
   droite (le jeu retourne l'image pour la gauche).
 
-## Tailles cibles (px art = taille ecran actuelle / 2,67)
+## Deux profils de taille (l'utilisateur n'a pas encore tranche ; defaut : petit)
+- **petit** : densite des tuiles (1 px art = 2,67 px ecran), tableau ci-dessous. Lisible mais
+  pauvre : meilleur resultat 5,5/10 selon l'utilisateur.
+- **detaille** : ~60-64 px de haut, affiche a l'echelle ~1 comme les personnages actuels
+  (crapaud : boite 80 x 60), 12-48 couleurs, texture et lignes interieures gardees. Repond a
+  son « detaille, realiste », au prix d'une densite differente de celle des tuiles.
+
+## Tailles cibles du profil petit (px art = taille ecran actuelle / 2,67)
 | Sujet | Taille ecran actuelle | Cible pixel art (l x h) |
 |---|---|---|
 | Agarica (humaine) | 45 x 84 | ~17 x 31 |

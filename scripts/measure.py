@@ -1,6 +1,7 @@
 """Mesures objectives d'un sprite (etape 1 de la notation). Pillow seul.
 
-Usage : python -I measure.py SPRITE.png --height 24 [--width 32] [--palette P.hex] [--json OUT.json]
+Usage : python -I measure.py SPRITE.png [--profile petit|detaille] [--height H] [--width L]
+        [--palette P.hex] [--json OUT.json]
 
 Chaque test a un seuil ; un seul echec => "plafond": 5 (la note finale ne peut pas depasser 5).
 Seuils expliques dans references/rubric.md (partie A).
@@ -9,10 +10,12 @@ import argparse, json, os, sys
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from forge_lib import load_palette, lab, lum, components, N4, N8, PALETTE
+from forge_lib import load_palette, lab, lum, components, N4, N8, PALETTE, PROFILES, DEFAULT_PROFILE
 
 
-def measure(path, th, tw, palette):
+def measure(path, th, tw, palette, profile=DEFAULT_PROFILE):
+    P = PROFILES[profile]
+    cmin, cmax = P["colors"]
     im = Image.open(path).convert("RGBA")
     w, h = im.size
     px = im.load()
@@ -56,17 +59,17 @@ def measure(path, th, tw, palette):
         ("hors_palette", f"{off} px", off == 0),
         ("semi_transparents", f"{semi} px", semi == 0),
         ("pixels_isoles", f"{isolated} px", isolated == 0),
-        ("orphelins_couleur", f"{orph / n:.1%} des px opaques (max 12 %)", orph / n <= 0.12),
+        ("orphelins_couleur", f"{orph / n:.1%} des px opaques (max {P['orphans']:.0%})", orph / n <= P["orphans"]),
         ("couverture_contour", f"{outline_cov:.0%} du bord est sombre (min 85 %)", outline_cov >= 0.85),
-        ("silhouette_un_bloc", f"{len(comps)} morceau(x), {frag} px detaches (max 2)", frag <= 2),
+        ("silhouette_un_bloc", f"{len(comps)} morceau(x), {frag} px detaches (max {P['frag']})", frag <= P["frag"]),
         ("remplissage_silhouette", f"{fill:.0%} de la boite (35-92 %)", 0.35 <= fill <= 0.92),
-        ("couleurs_utilisees", f"{len(used)} (5-20)", 5 <= len(used) <= 20),
+        ("couleurs_utilisees", f"{len(used)} ({cmin}-{cmax})", cmin <= len(used) <= cmax),
         ("contraste_valeurs", f"L* {lo:.0f}->{hi:.0f}, ecart {contrast:.0f} (min 45)", contrast >= 45),
-        ("bruit", f"{noise:.0%} de voisins de couleur differente (max 55 %)", noise <= 0.55),
+        ("bruit", f"{noise:.0%} de voisins de couleur differente (max {P['noise']:.0%})", noise <= P["noise"]),
     ]
     failed = [t[0] for t in tests if not t[2]]
     return {
-        "sprite": path, "size": [w, h], "opaque_px": len(ops), "colors": len(used),
+        "sprite": path, "profil": profile, "size": [w, h], "opaque_px": len(ops), "colors": len(used),
         "tests": [{"test": t[0], "valeur": t[1], "ok": t[2]} for t in tests],
         "echecs": failed, "plafond": 5 if failed else 10,
     }
@@ -75,12 +78,14 @@ def measure(path, th, tw, palette):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("sprite")
-    ap.add_argument("--height", type=int, required=True)
-    ap.add_argument("--width", type=int, default=0)
+    ap.add_argument("--profile", default=DEFAULT_PROFILE, choices=sorted(PROFILES))
+    ap.add_argument("--height", type=int, default=0, help="defaut : celle du profil")
+    ap.add_argument("--width", type=int, default=-1, help="defaut : celle du profil (0 = libre)")
     ap.add_argument("--palette", default=PALETTE)
     ap.add_argument("--json")
     a = ap.parse_args()
-    r = measure(a.sprite, a.height, a.width, a.palette)
+    P = PROFILES[a.profile]
+    r = measure(a.sprite, a.height or P["height"], P["width"] if a.width < 0 else a.width, a.palette, a.profile)
     if a.json:
         with open(a.json, "w", encoding="utf-8") as f:
             json.dump(r, f, indent=1, ensure_ascii=False)
