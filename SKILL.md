@@ -28,33 +28,36 @@ n'est pas un entrainement de modele. L'apprentissage, c'est `learnings.md`.
    commiter la cle ; dire seulement « cle de compte utilisee : oui/non » (`generate.json`).
 4. Dossier de travail : le scratchpad de la session s'il existe, sinon
    `$env:TEMP\pixel-art-forge\<date>-<sujet>`.
-5. Lire `calibration/calibration.md` : notes reelles de l'utilisateur, ses mots, ses trois
-   exigences (CONTOURS DEFINIS, TEXTURE, ELEMENTS DISTINCTS). Elles guident prompt et correction.
+5. Lire `calibration/calibration.md` : notes reelles de l'utilisateur, ses mots, et ce qu'on
+   en a appris : il veut du NET et LISIBLE (formes propres, contour net, parties distinctes,
+   ombrage doux, detail propre) et deteste le bruit ; pose naturelle legerement preferee.
 6. Choisir le profil de taille (demander si l'utilisateur ne l'a pas dit ; defaut `petit`
    tant qu'il n'a pas tranche) :
    - `petit` : 24-30 px de haut, densite des tuiles, 5-20 couleurs (meilleur obtenu : 5,5/10).
-   - `detaille` : ~60-64 px de haut, taille des personnages actuels du jeu, 12-48 couleurs,
-     reduction moins agressive (garde oeil, bouche, pattes, texture). Correspond a son
-     « detaille, realiste ».
+   - `detaille` : ~60-64 px de haut, taille des personnages actuels du jeu, 8-48 couleurs,
+     palette des la HD et fusion des taches de 1-2 px (meilleur obtenu : 6,5/10 utilisateur,
+     6,5/10 juges v3). Correspond a son « detaille, realiste ».
    Le detail est dans `PROFILES` (`scripts/forge_lib.py`).
 
 ## Boucle (6 essais max, 3 en profil detaille si le temps presse)
 Pour chaque essai `n` :
 1. **Generer + pixeliser + mesurer + planches** en une commande :
-   `& $py -I scripts/forge_try.py --work W --essai n --profile petit|detaille --prompt "..." --negative "..." --seeds a b c [--method cells|cells2|pixel-fixer]`
-   (3 graines ; prompt court, < 45 mots ; le sprite est retourne automatiquement s'il
-   semble regarder a gauche ; `--reuse W/essai-k/raw` pour repixeliser sans regenerer).
-2. **Preselection** : regarder `raw/` et les `seed*.board.png` (outil Read). Garder la graine
-   la plus forte sur les trois exigences ; ecarter les plafonds 5 si un autre passe.
-3. **Juges** : lancer 2 sous-agents en parallele avec `references/judge-prompt.md` v2
+   `& $py -I scripts/forge_try.py --work W --essai n --profile petit|detaille --prompt "..." --negative "..." --seeds a b c [--method cells|cells2|pixel-fixer] [--lora 120096:0.8]`
+   (3 graines ; prompt court, < 45 mots, recette « net » de `prompting.md` ; le sprite est
+   retourne automatiquement s'il semble regarder a gauche ; `--reuse W/essai-k/raw` pour
+   repixeliser sans regenerer).
+2. **Preselection** : regarder `raw/` et les sprites a grossissement ENTIER (x4/x8 ; un
+   agrandissement non entier invente des pointilles). Garder la graine la plus nette et
+   lisible ; ecarter les plafonds 5 si un autre passe.
+3. **Juges** : lancer 2 sous-agents en parallele avec `references/judge-prompt.md` v3
    (planche, sprite agrandi, `seed*.measure.json`, brief, ancres = images de `calibration/`
    avec les notes de l'utilisateur). Ils ne voient ni le prompt ni les essais.
 4. **Note** = min(juge 1, juge 2, plafond objectif) selon `references/rubric.md` partie C.
    **Enregistrer chaque essai, retenu ou non** (l'utilisateur veut voir comment les juges
    notent) : `& $py -I scripts/history.py record --work W --essai n --seed seedX --note N --juge1 a --juge2 b [--plafond 5] --defauts "..." "..." "..."`
    (2-3 defauts en francais court, tires des `defauts_prioritaires`). Ne rien effacer dans W.
-5. Si note >= 8 : livrer. Sinon : lire les `defauts_prioritaires` et l'exigence la plus
-   ratee (contours, texture ou elements), choisir UNE correction principale dans la table de
+5. Si note >= 8 : livrer. Sinon : lire les `defauts_prioritaires` (le bruit d'abord, puis
+   les parties indistinctes), choisir UNE correction principale dans la table de
    `prompting.md`, ajouter la lecon a `learnings.md`, essai suivant.
    Si deux essais de suite n'ont pas bouge la note, changer d'axe (modele, taille cible, pose).
 

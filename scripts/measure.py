@@ -50,9 +50,27 @@ def measure(path, th, tw, palette, profile=DEFAULT_PROFILE):
                 pairs += 1
                 diff += px[x + dx, y + dy][:3] != px[x, y][:3]
     noise = diff / max(1, pairs)
+    # salissure : part des pixels pris dans des taches de 1-2 px d'une meme couleur (4-connexite).
+    # Calee sur les notes de l'utilisateur : detaille propre 10 % (6,5/10), sales 20-23 % (2-3/10).
+    seen = set(); speck_px = 0
+    for x, y in ops:
+        if (x, y) in seen:
+            continue
+        c = px[x, y][:3]; st = [(x, y)]; seen.add((x, y)); region = 0
+        while st:
+            cx, cy = st.pop(); region += 1
+            for dx, dy in N4:
+                nx, ny = cx + dx, cy + dy
+                if op(nx, ny) and (nx, ny) not in seen and px[nx, ny][:3] == c:
+                    seen.add((nx, ny)); st.append((nx, ny))
+        if region <= 2:
+            speck_px += region
+    specks = speck_px / n
     contrast = hi - lo
     # le sujet doit remplir la boite cible (a 2 px pres sur un des deux cotes), jamais la depasser
-    size_ok = (th - 2 <= h or (tw and tw - 2 <= w)) and h <= th and (not tw or w <= tw)
+    # tolerance : 2 px ou 7 % de la cible (le recadrage et le contour exterieur mangent quelques px)
+    tol_h, tol_w = max(2, round(th * 0.07)), max(2, round((tw or 0) * 0.07))
+    size_ok = (th - tol_h <= h or (tw and tw - tol_w <= w)) and h <= th and (not tw or w <= tw)
 
     tests = [
         ("taille", f"{w}x{h} (cible h={th}{', l<=' + str(tw) if tw else ''})", size_ok),
@@ -66,6 +84,7 @@ def measure(path, th, tw, palette, profile=DEFAULT_PROFILE):
         ("couleurs_utilisees", f"{len(used)} ({cmin}-{cmax})", cmin <= len(used) <= cmax),
         ("contraste_valeurs", f"L* {lo:.0f}->{hi:.0f}, ecart {contrast:.0f} (min 45)", contrast >= 45),
         ("bruit", f"{noise:.0%} de voisins de couleur differente (max {P['noise']:.0%})", noise <= P["noise"]),
+        ("salissure", f"{specks:.1%} des px en taches de 1-2 px (max {P['specks']:.0%})", specks <= P["specks"]),
     ]
     failed = [t[0] for t in tests if not t[2]]
     return {

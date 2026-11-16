@@ -48,7 +48,7 @@ def horde_key():
     return (k, True) if k and k != ANON_KEY else (ANON_KEY, False)
 
 
-def horde(prompt, negative, seeds, out, model, size, steps, cfg, log):
+def horde(prompt, negative, seeds, out, model, size, steps, cfg, log, lora=""):
     full = prompt + (" ### " + negative if negative else "")
     key, account = horde_key()
     log["cle_compte"] = account
@@ -63,7 +63,8 @@ def horde(prompt, negative, seeds, out, model, size, steps, cfg, log):
             body = {
                 "prompt": full,
                 "params": {"sampler_name": "k_euler_a", "cfg_scale": cfg, "seed": str(s),
-                           "height": size, "width": size, "steps": steps, "n": 1, "karras": True},
+                           "height": size, "width": size, "steps": steps, "n": 1, "karras": True,
+                           **({"loras": [{"name": lora.split(":")[0], "model": float(lora.split(":")[1]) if ":" in lora else 0.8, "clip": 1.0}]} if lora else {})},
                 "models": [model], "nsfw": False, "censor_nsfw": True, "r2": True,
                 "trusted_workers": False, "slow_workers": True,
             }
@@ -149,12 +150,14 @@ def main():
     ap.add_argument("--size", type=int, default=768)
     ap.add_argument("--steps", type=int, default=25)
     ap.add_argument("--cfg", type=float, default=7.0)
+    ap.add_argument("--lora", default="", help="LoRA AI Horde (id CivitAI[:force]), ex. 120096:0.8 = Pixel Art XL")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     log = {"engine": a.engine, "model": a.model if a.engine == "horde" else "pollinations-anonyme",
            "prompt": a.prompt, "negative": a.negative, "seeds": a.seeds, "files": [], "errors": []}
     if a.engine == "horde":
-        horde(a.prompt, a.negative, a.seeds, a.out, a.model, a.size, a.steps, a.cfg, log)
+        log["lora"] = a.lora
+        horde(a.prompt, a.negative, a.seeds, a.out, a.model, a.size, a.steps, a.cfg, log, a.lora)
         if not log["files"]:
             log["errors"].append("AI Horde n'a rien rendu : bascule sur Pollinations")
             log["engine"] = "pollinations (secours)"

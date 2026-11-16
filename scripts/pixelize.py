@@ -86,7 +86,7 @@ def cutout(src, tol, mask_logo):
     return canvas
 
 
-def simplify(hd, colors):
+def simplify(hd, colors, palette=None):
     """Aplats en HD avant la reduction : filtre median + N couleurs sans tramage.
     Evite le grain (« peinture reduite ») qui fait echouer le test de bruit."""
     if colors <= 0:
@@ -97,9 +97,51 @@ def simplify(hd, colors):
     # leger contraste (la saturation poussee faisait virer l'olive au jaune a la palette)
     rgb = ImageEnhance.Contrast(rgb).enhance(1.1)
     q = rgb.quantize(colors=colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).convert("RGB")
+    if palette:
+        # palette du jeu appliquee DES la HD : deux teintes voisines ne tombent plus sur deux
+        # couleurs de palette differentes d'une cellule a l'autre (source de « damier »)
+        sn = Snapper(palette)
+        lut = {c: sn.nearest(c)[0] for _, c in (q.getcolors(1 << 16) or [])}
+        qp = q.load()
+        for y in range(q.height):
+            for x in range(q.width):
+                qp[x, y] = lut[qp[x, y]]
     out = q.convert("RGBA")
     out.putalpha(a)
     return out
+
+
+def despeckle(im, max_size=2):
+    """Fond les taches de 1-2 px d'une meme couleur dans leur voisine majoritaire, sauf les
+    couleurs extremes (contour/pupille tres sombres, eclats tres clairs) : retire le grain
+    que l'utilisateur deteste sans effacer oeil ni reflet."""
+    px = im.load()
+    w, h = im.size
+    ls = sorted({lum(px[x, y]) for y in range(h) for x in range(w) if px[x, y][3]})
+    if not ls:
+        return im
+    lo, hi = ls[0] + 0.12 * (ls[-1] - ls[0]), ls[-1] - 0.08 * (ls[-1] - ls[0])
+    seen = set()
+    for y in range(h):
+        for x in range(w):
+            if (x, y) in seen or not px[x, y][3]:
+                continue
+            c = px[x, y]; st = [(x, y)]; seen.add((x, y)); reg = []
+            while st:
+                cx, cy = st.pop(); reg.append((cx, cy))
+                for dx, dy in N4:
+                    nx, ny = cx + dx, cy + dy
+                    if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in seen and px[nx, ny] == c:
+                        seen.add((nx, ny)); st.append((nx, ny))
+            if len(reg) > max_size or not (lo < lum(c) < hi):
+                continue
+            ns = [px[rx + dx, ry + dy] for rx, ry in reg for dx, dy in N4
+                  if 0 <= rx + dx < w and 0 <= ry + dy < h and px[rx + dx, ry + dy][3] and px[rx + dx, ry + dy] != c]
+            if ns:
+                best = max(set(ns), key=ns.count)
+                for rx, ry in reg:
+                    px[rx, ry] = best
+    return im
 
 
 def faces_left(hd):
@@ -312,9 +354,13 @@ def main():
     ap.add_argument("--simplify", type=int, default=12, help="couleurs des aplats HD avant reduction (0 = non)")
     ap.add_argument("--method", default="cells", choices=["pixel-fixer", "cells", "cells2"],
                     help="cells = reduction par cellules avec priorite aux sombres (oeil, bouche, contour)")
+    ap.add_argument("--palette-first", action="store_true",
+                    help="appliquer la palette du jeu des la HD (moins de damier a la reduction)")
+    ap.add_argument("--despeckle", type=int, default=0, help="fondre les taches de 1..N px (0 = non)")
     a = ap.parse_args()
 
-    hd = simplify(cutout(a.src, a.bg_tol, a.mask_logo), a.simplify)
+    hd = simplify(cutout(a.src, a.bg_tol, a.mask_logo), a.simplify,
+                  load_palette(a.palette) if a.palette_first else None)
     orient = "flip" if a.flip else a.orient
     if orient == "auto" and faces_left(hd):
         orient = "flip"
@@ -341,6 +387,8 @@ def main():
     if small is None:
         small = fallback(hd, th, tw)
     small = cleanup(small, pal, inner_outline, a.max_colors)
+    if a.despeckle:
+        small = despeckle(small, a.despeckle)
     bb = small.getchannel("A").getbbox()
     if bb:
         small = small.crop(bb)

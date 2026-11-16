@@ -47,3 +47,22 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   (la palette du jeu donne 10-11 couleurs sur un sprite propre).
 - 2026-11-16 - AI Horde - la cle de compte (sans kudos) n'accelere pas beaucoup : ~10 min
   par essai de 3 images dans les deux cas aux heures chargees.
+- 2026-11-16 - REVIRAGE DE GOUT (notes du lot detaille : 2 / 6,5 / 3) - l'utilisateur
+  recompense la NETTETE (formes propres, contour net, parties distinctes, ombrage doux) et
+  punit le BRUIT ; la v2.1 avait recompense une texture sale. Grille v3 : nettete 35 %,
+  plafond 3 si bruit dominant, mesure « salissure » (taches de 1-2 px) calee sur ses notes.
+  La pose compte peu (+0,5 a 4 pattes, -0,5 a -1 « bonhomme »).
+- 2026-11-16 - crapaud-net essai 1 (6,5) - (+) prompt « clean cel-shaded ... bold dark
+  outline, flat colors, soft shading, simple readable shapes » + negatif « noisy, grainy,
+  mottled, dirty, speckled » : sources propres a 4 pattes, reduction propre (salissure 10 %).
+  (-) lu comme une grenouille (vert vif, peau lisse, pas de verrues).
+- 2026-11-16 - LoRA AI Horde « Pixel Art XL » (CivitAI 120096, `--lora 120096:0.8`), essai 2
+  (6,5, meme prompt) - (+) sources en vrai pixel art, yeux et doigts dessines, plus crapaud
+  (dos brun). (-) jaune sature, petit grain sur le dos ; pas mieux note que sans LoRA.
+  Disponible et gratuit avec la cle ; a reessayer avec un prompt plus brun-olive.
+- 2026-11-16 - outil - regarder les sprites a un grossissement ENTIER (x4, x8) : un
+  agrandissement non entier fabrique de faux pointilles et fait croire a du bruit.
+- 2026-11-16 - pixelisation - palette appliquee des la HD (`--palette-first`) + fusion des
+  taches de 1-2 px (`--despeckle 2`) : salissure 10 % -> 5 % sans perdre oeil ni reflet ;
+  actives par defaut en profil detaille. Tolerance du test « taille » : 7 % (le recadrage
+  mangeait 4-6 px sur 80).

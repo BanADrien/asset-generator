@@ -47,12 +47,17 @@ texture, gradient background`
 | Volume plat | prompt « strong top-left light, three tone shading » |
 | Detourage qui mange le sujet clair | fond « plain pure white » -> essayer « plain light grey background » + `--bg-tol 30` |
 
-## Profil detaille (~64 px) : viser les trois exigences de l'utilisateur
-- Prompt : `pixel art sprite, side view of a <sujet>, profile, <pose>, bold inked outlines,
-  clearly separated head, belly and legs, textured <matiere> skin, <couleurs>, <oeil>, white
-  background` ; negatif + `smooth plastic skin, blurry`.
-- Reduction : `--profile detaille` (cellules en 2 passes, 40 couleurs d'aplats, contour
-  exterieur). `--method pixel-fixer` garde plus de texture et de lignes interieures a cette
-  taille ; comparer les deux sur la meme image (`--reuse`) et garder le meilleur.
-- Point de depart de forme : l'essai 6 du crapaud (masse ronde, peau marbree), prefere de
-  l'utilisateur.
+## Profil detaille (~64 px) : NET d'abord (grille v3, gout reel de l'utilisateur)
+- Prompt (meilleur a ce jour, 6,5/10) : `clean cel-shaded 2d game sprite of a <sujet> <pose
+  naturelle, ex. crouching on four legs>, three-quarter side view, bold dark outline, flat
+  colors, soft shading, simple readable shapes, <yeux avec pupille>, <bouche>, <peau> with neat
+  round warts, <ventre>, white background`.
+  Negatif : `noisy, grainy, mottled, dirty, speckled, standing upright, text, watermark,
+  scenery, ground, shadow, 3d render, photo` (+ `frog, smooth skin, bright green` pour un crapaud).
+- A eviter : « textured / marbled / heavily textured skin » (donne de la salissure, notee 2-3).
+- LoRA pixel art SDXL : `--lora 120096:0.8` (Pixel Art XL, gratuit via AI Horde) : sources en
+  vrai pixel art, yeux et doigts dessines ; meme note que sans LoRA au premier test.
+- Reduction : `--profile detaille` = cellules en 2 passes, palette du jeu des la HD, fusion des
+  taches de 1-2 px, contour exterieur. `--method pixel-fixer` garde plus de grain : a eviter
+  sauf comparaison.
+- Toujours regarder les sprites a grossissement entier (x4, x8).

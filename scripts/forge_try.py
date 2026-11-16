@@ -46,6 +46,7 @@ def main():
     ap.add_argument("--simplify", type=int, default=0)
     ap.add_argument("--max-colors", type=int, default=0)
     ap.add_argument("--bg-tol", type=int, default=40)
+    ap.add_argument("--lora", default="", help="LoRA AI Horde, ex. 120096:0.8 (Pixel Art XL)")
     ap.add_argument("--reuse", default="")
     ap.add_argument("--label", default="")
     a = ap.parse_args()
@@ -63,7 +64,7 @@ def main():
     if not a.reuse:
         code, gen_out = run([os.path.join(HERE, "generate.py"), "--prompt", a.prompt, "--negative", a.negative,
                              "--out", raw, "--engine", a.engine, "--model", a.model, "--size", str(a.size),
-                             "--seeds"] + [str(s) for s in a.seeds])
+                             "--seeds"] + [str(s) for s in a.seeds] + (["--lora", a.lora] if a.lora else []))
     files = sorted(f for f in glob.glob(os.path.join(raw, "seed*.*")) if not f.endswith(".json"))
     rows = []
     for f in files:
@@ -75,6 +76,10 @@ def main():
                 "--orient", "flip" if seed in a.flip_seeds else a.orient]
         if width:
             args += ["--width", str(width)]
+        if P.get("palette_first"):
+            args.append("--palette-first")
+        if P.get("despeckle"):
+            args += ["--despeckle", str(P["despeckle"])]
         if f.endswith(".jpg"):
             args.append("--mask-logo")
         code, out = run(args)

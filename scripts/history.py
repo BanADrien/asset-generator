@@ -53,7 +53,8 @@ def board(a):
     if not fiches:
         raise SystemExit("aucune fiche : lancer d'abord 'history.py record' pour chaque essai")
     fiches.sort(key=lambda x: x["essai"])
-    best = max(fiches, key=lambda x: (x["note_finale"], x["essai"]))
+    # meilleur : note finale, puis somme des deux juges, puis le plus ancien
+    best = max(fiches, key=lambda x: (x["note_finale"], x["juge1"] + x["juge2"], -x["essai"]))
     sprites = [Image.open(f["sprite"]).convert("RGBA") for f in fiches]
     zoom = max(2, min(8, 200 // max(max(s.size) for s in sprites)))
     cw = max(220, max(s.width for s in sprites) * zoom + 24)
