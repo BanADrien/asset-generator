@@ -298,3 +298,14 @@ globale est propre et son design est coherent ».
 - Interpretation de Claude : l'essai 4 a echoue parce qu'il REDESSINAIT le crapaud (nouvelles
   proportions, nouvelle pose, taille reduite) et a perdu la silhouette et la coherence du n°7.
   Lecon : quand un design plait, on le conserve et on ne retouche que les defauts cites.
+
+## Notes de l'essai 5 (retouches du n°7, 16/11/2026)
+1 Gueule fermee 4 ; 2 + un cran de realisme 5 ; 3 + deux crans de realisme 6 (reference n°7 :
+6). Images : `crapaud-retouche7-1..3.png`.
+Lecture (interpretation de Claude) :
+- Sur ce design, la note monte d'un point par cran de realisme (4 -> 5 -> 6) : le curseur n'a
+  pas encore atteint son maximum ; continuer a monter jusqu'a ce que la note redescende.
+- Fermer la gueule a coute 2 points (reference 6 -> retouche 1 a 4). La gueule fermee telle
+  que dessinee est faible : ligne de bouche peu visible, grand bloc creme plat et en escalier
+  sous la tete ; sans la langue le crapaud perd aussi un peu de caractere. Il faut une bouche
+  fermee VRAIMENT dessinee et une gorge modelee.

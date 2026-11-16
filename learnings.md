@@ -141,3 +141,6 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
 - 2026-11-16 - essai 5 : 3 retouches du n°7 (image jointe agrandie x10 « this is an EDIT, keep
   strictly identical ... change ONLY ») : silhouette, pose et palette conservees sur les 3, en
   ~1 min. La retouche garde le design la ou un nouveau dessin le perd (essai 4).
+- 2026-11-16 - essai 6 : 3 retouches de la retouche n°3 (3, 4, 5 crans de realisme + bouche et
+  gorge corrigees), design conserve sur les 3, ~1 min. Notes 4 -> 5 -> 6 a l'essai 5 : sur un
+  design qui plait, monter le realisme par crans jusqu'a ce que la note redescende.
