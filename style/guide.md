@@ -42,6 +42,11 @@ est bien proportionne ». Realisme : 3 a 4 crans au-dessus de l'anguleux (5 cran
 curseur, deja moins bien). Forme : grosse gorge, bien proportionne, gueule fermee. Cible
 principale : `references/cible/crapaud-cible-principale-1.png` et `-2.png` (~98x64).
 
+Parole : « note l'idee des couleurs, mais en soi je prefere toujours la ref » : la cible
+principale reste le STYLE PREFERE. Les styles « contour colore lumineux » et « clair de lune »
+(`references/cible/crapaud-style-*.png`) sont des IDEES DE COULEUR ET DE LUMIERE a piocher
+plus tard (lisere de lumiere, contour teinte, ambiance de nuit), PAS des styles par defaut.
+
 ## REFERENCE DE STYLE (etalon) - `etalon-style.png` (+ `etalon-style-x8.png`)
 Parole de l'utilisateur : « je prefere quand meme le design de la version debout dans le
 style ». Cette image (crapaud debout du profil detaille, note 6,5) est le STYLE voulu pour

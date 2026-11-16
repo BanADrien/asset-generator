@@ -338,3 +338,11 @@ bits trame, gravure terreuse) : ne rien en deduire.
 Copies : `references/cible/crapaud-style-contour-lumineux.png` et `crapaud-style-clair-de-lune.png`.
 Interpretation de Claude : les deux styles retenus sont ceux ou la LUMIERE est la plus
 travaillee (lisere lumineux, eclairage de nuit).
+
+## Parole sur les styles retenus (16/11/2026)
+« note l'idee des couleurs, mais en soi je prefere toujours la ref ».
+- La reference (retouche 2 de l'essai 6 : realisme intermediaire, grosse gorge, gueule fermee)
+  reste la CIBLE PRINCIPALE et le STYLE PREFERE.
+- Les styles 4 « contour colore lumineux » et 6 « clair de lune » sont gardes comme IDEES DE
+  COULEUR ET DE LUMIERE a piocher plus tard (lisere de lumiere, contour teinte, ambiance de
+  nuit). Ce ne sont PAS des styles a appliquer par defaut.
