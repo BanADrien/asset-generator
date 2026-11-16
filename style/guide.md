@@ -28,7 +28,16 @@ doux en peu de valeurs, contour sombre net, aucun grain. A utiliser comme image 
 directe par les juges (critere « appartenance au style »).
 Le crapaud orange actuel du jeu reste l'ancre de QUALITE (6,75) : la barre a depasser.
 
-## Deux profils de taille (l'utilisateur n'a pas encore tranche ; defaut : petit)
+## Integration dans le jeu (profil natif, par defaut)
+- Le sprite natif (sortie de `grid_reduce.py`) s'affiche a l'**echelle 1** avec `pixelArt: true`
+  dans Phaser ; jamais d'echelle non entiere (elle deforme les pixels). Si un agrandissement
+  est necessaire, x2 ou x3 entier seulement.
+- Taille : la hauteur de grille demandee a Codex ~ la hauteur a l'ecran du sprite actuel du
+  sujet (+10 % au plus). Repere crapaud : natif 84 x 62 integre ; crapaud actuel 71 x 56 a l'ecran.
+- Palette : celle de l'image (couleurs sobres demandees au prompt) ; la palette du jeu n'est
+  plus imposee (elle ternissait les couleurs).
+
+## Anciens profils de taille (hors chemin par defaut) (l'utilisateur n'a pas encore tranche ; defaut : petit)
 - **petit** : densite des tuiles (1 px art = 2,67 px ecran), tableau ci-dessous. Lisible mais
   pauvre : meilleur resultat 5,5/10 selon l'utilisateur.
 - **detaille** : ~60-64 px de haut, affiche a l'echelle ~1 comme les personnages actuels

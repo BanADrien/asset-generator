@@ -27,5 +27,5 @@ taille ecran (`examples.json` donne le fichier source et l'echelle).
 ## Outils
 - pixel-fixer (« unslop pixelart », depot BanADrien/pixel-fixer, copie locale de
   l utilisateur, chemin dans `config.local.json` non versionne ; Node + sharp requis).
-- AI Horde (https://aihorde.net) : generation communautaire gratuite, cle anonyme publique.
-- Pollinations (https://image.pollinations.ai) : secours, sans cle, quota anonyme bas.
+- Codex (`codex exec`, extension VS Code openai.chatgpt) : generateur d'images du skill depuis le
+  16/11/2026 (AI Horde et Pollinations abandonnes ce jour-la).

@@ -5,7 +5,10 @@ texte. Ils ne savent rien du prompt de generation ni des essais precedents. Enre
 reponse JSON dans `W/essai-n/juge1.json` et `juge2.json`, puis calculer la note avec
 `scripts/score.py --judge juge1.json --judge juge2.json --measure seedX.measure.json`.
 <ANCRES> = toutes les images `calibration/*-x8.png` avec leur note utilisateur (tableau de
-`calibration/calibration.md`). Pour valider le calage sur une image de calibration, retirer
+`calibration/calibration.md`), dont les ancres HAUTES : le Codex brut (7,25) et la reference
+natif Codex essai 3 (`crapaud-codex-natif3-x8.png`, non notee par l'utilisateur, juges 7).
+Mesures du profil natif : pas de test de palette du jeu ni de taille 64 ; la fidelite au brut
+compte (toute perte visible par rapport au brut fait baisser). Pour valider le calage sur une image de calibration, retirer
 cette image de la liste (leave-one-out).
 
 ---

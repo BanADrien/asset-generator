@@ -80,3 +80,16 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   sature). Base etalon a 0,55 : la pose debout NE change PAS (5) -> pour changer la pose,
   partir d'une base deja dans la bonne pose. ControlNet (SD 1.5) refuse : HTTP 403, demande
   des kudos que le compte neuf n'a pas.
+- 2026-11-16 - AI Horde abandonne le 2026-11-16 : plafonne a 6,5 selon les juges, juge
+  « horrible » par l'utilisateur (« les 3 sont horribles, oublie l'outil gratuit »).
+  Pollinations abandonne le meme jour. Generateur unique : Codex (`codex exec`), dont une image
+  brute a ete notee 7,25 (sa meilleure note).
+- 2026-11-16 - reduction : `grid_reduce.py` (fidele a la grille Codex, resolution native,
+  palette propre) devient la reduction par defaut ; l'ancienne (64 px + palette du jeu)
+  coutait ~3 points. Mesure `fidelite_brut` : natif 10, ancienne reduction 21 (notee 4).
+- 2026-11-16 - quota Codex : 6 images par essai (« fais-les par 6 »), 4 essais max ; des
+  l'essai 2, 3 retouches du champion + 3 nouvelles. Tri des 6 (lecteur aveugle + mesures),
+  2 juges sur les 3 meilleures.
+- 2026-11-16 - juges v4 (lecteur aveugle + placement par comparaison) testes et NON adoptes :
+  ecart moyen 1,66 sur 19 images ; le lecteur aveugle dit « crapaud » a tout (meme brique,
+  tortue). Il reste utile pour verifier oeil et bouche au tri.

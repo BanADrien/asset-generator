@@ -98,8 +98,12 @@ def unique_path(folder, name):
 
 # Profils de taille. "petit" = densite des tuiles (24-30 px de haut) ; "detaille" = taille des
 # personnages actuels du jeu (~64 px), plus de couleurs, reduction moins agressive.
-# Le profil par defaut reste "petit" tant que l'utilisateur n'a pas tranche.
+# "natif" (defaut depuis le passage a Codex) : la taille et la palette de l'image generee.
 PROFILES = {
+    # PAR DEFAUT : resolution native de l'image Codex (grid_reduce), palette propre de l'image.
+    "natif": {"height": 0, "width": 0, "size_range": (40, 110), "palette": False, "colors": (8, 40),
+              "orphans": 0.20, "frag": 6, "noise": 0.65, "specks": 0.15, "fidelity": 14,
+              "method": "grid", "screen_scale": 1.0, "simplify": 0, "max_colors": 32},
     "petit": {"height": 24, "width": 32, "colors": (5, 20), "orphans": 0.12, "frag": 2, "noise": 0.55, "specks": 0.25,
               "simplify": 12, "max_colors": 12, "method": "cells", "screen_scale": 64 / 24,
               "palette_first": False, "despeckle": 0},
@@ -107,4 +111,4 @@ PROFILES = {
                  "simplify": 40, "max_colors": 40, "method": "cells2", "screen_scale": 1.0,
                  "palette_first": True, "despeckle": 2},
 }
-DEFAULT_PROFILE = "petit"
+DEFAULT_PROFILE = "natif"

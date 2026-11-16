@@ -5,22 +5,25 @@ notes (`calibration/calibration.md`) : il recompense ce qui est NET et LISIBLE, 
 BRUIT. Un 8 doit pouvoir etre montre sans excuse. Ordre : A (script), B (deux juges
 separes), C (calcul).
 
-## A. Mesures objectives - `scripts/measure.py --profile petit|detaille`
+## A. Mesures objectives - `scripts/measure.py --profile natif --raw BRUT.png` (defaut)
+Sprite natif (grid_reduce : resolution et palette propres de l'image) :
 | Test | Seuil | Pourquoi |
 |---|---|---|
-| hors_palette | 0 px | coherence de couleur avec le jeu |
+| taille | hauteur 40-110 px (grille adaptee au jeu) | integration a l'echelle 1 |
 | semi_transparents | 0 px | halos sur fond sombre |
 | pixels_isoles | 0 px | poussiere |
-| **salissure** | <= 25 % (petit) / <= 15 % (detaille) des px en taches de 1-2 px | suit son gout : sprites propres ~10 %, sprites sales 20 % et plus |
-| orphelins_couleur | <= 12 % (petit) / <= 18 % (detaille) | bruit d'IA |
+| salissure | <= 15 % des px en taches de 1-2 px | suit son gout : propres ~10 %, sales 20 % et plus |
+| orphelins_couleur | <= 20 % | bruit |
 | couverture_contour | >= 85 % du bord dans le tiers sombre | silhouette fermee |
-| silhouette_un_bloc | <= 2 px detaches (petit) / <= 6 (detaille) | lisibilite |
+| silhouette_un_bloc | <= 6 px detaches | lisibilite |
 | remplissage_silhouette | 35-92 % de la boite | ni baton, ni brique |
+| couleurs_utilisees | 8-40 | pixel art, pas peinture |
 | contraste_valeurs | ecart L* >= 45 | lecture sur fond nuit |
-| bruit | <= 55 % (petit) / <= 65 % (detaille) de voisins differents | aplats et rampes |
-| taille | hauteur ou largeur a 2 px de la cible du profil, jamais au-dessus | densite |
-| couleurs_utilisees | 5-20 (petit) / 8-48 (detaille) | pixel art, pas peinture |
-**Un seul echec => plafond 5/10.**
+| bruit | <= 65 % de voisins differents | aplats et rampes |
+| frange_blanche | <= 5 % du bord quasi blanc | detourage propre |
+| fidelite_brut | ecart Lab moyen <= 14 avec le brut reduit | la reduction ne doit rien perdre (natif Codex 10 ; ancienne reduction 21, notee 4) |
+Plus de test « palette du jeu » ni de taille 64 imposee (profils `petit`/`detaille` : anciens
+seuils, voir l'historique git). **Un seul echec => plafond 5/10.**
 
 ## B. Jugement visuel (juge separe, voir `judge-prompt.md`)
 Le juge NOTE ; les plafonds sont appliques par `scripts/score.py` a partir de ses champs

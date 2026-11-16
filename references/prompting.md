@@ -1,80 +1,84 @@
-# Generation : moteur, prompt, corrections
+# Generation (Codex) et reduction
 
-## Moteurs (gratuits, sans compte, rien a installer)
-- **AI Horde** (defaut) : `--engine horde`, modele `AlbedoBase XL (SDXL)` en 768 px. Suit bien
-  « side view / profile / white background ». Cle anonyme publique, 2 travaux a la fois,
-  30 s a 3 min par image selon la file. Autres modeles possibles : `Juggernaut XL`,
-  `AIO Pixel Art` (vrai rendu pixel mais suit mal le sujet : a eviter pour un animal precis).
-- **Pollinations** (secours) : `--engine pollinations`. Palier anonyme : ~1 image par minute
-  (HTTP 402 sinon : le script attend), logo en bas a droite (masque automatiquement : garder
-  le sujet centre), modele unique `sana`.
-- Ne jamais payer, ne jamais creer de compte, n'envoyer que la description du sprite.
+## Generateur : Codex (seul generateur du skill)
+- Valide par l'utilisateur : une image brute Codex a ete notee 7,25 (sa meilleure note).
+- `scripts/generate.py` lance `codex exec` (binaire de l'extension VS Code
+  `%USERPROFILE%\.vscode\extensions\openai.chatgpt-*\bin\windows-x86_64\codex.exe`, version la
+  plus recente, sinon `codex` du PATH ; variable `CODEX_EXE` pour forcer) dans un dossier VIDE,
+  bac a sable `workspace-write` limite a ce dossier, avec pour seule mission de generer des PNG.
+  Ne jamais lire `~/.codex/auth.json` ni `config.toml`.
+- Images jointes (`--ref`, passees en `-i`) : l'etalon de style `style/etalon-style.png` et,
+  s'il existe, le sprite actuel du sujet dans le jeu (reference d'anatomie et de detail a depasser).
+- QUOTA de l'utilisateur (« fais-les par 6 ») : **6 images par essai, 4 essais maximum par
+  sprite**, arret des 8/10.
+- Essai 1 : 6 nouvelles propositions. **Des l'essai 2 : 3 images partent du champion** (la
+  meilleure image brute, jointe en premier, avec UN defaut a corriger) **+ 3 nouvelles
+  propositions** (`forge_try.py --champion ... --fix-prompt-file ...`).
+- AI Horde et Pollinations ont ete abandonnes le 16/11/2026 (voir learnings.md).
 
-## Recette de prompt (anglais, SDXL)
-`2d side-scrolling platformer game sprite, <sujet precis> in perfect side profile, looking
-right, <pose>, flat 2d cartoon, <detail signature agrandi : "one big round yellow eye...">,
-<2-3 couleurs de palette en mots>, flat colors, three tone shading, thick dark outline,
-chunky simple shapes, plain flat white background, centered, no shadow`
-(« cel shading » seul donne une figurine 3D pale ; « 2d ... flat cartoon » donne des aplats.)
-Negatif : `text, watermark, signature, frame, border, scenery, ground, grass, cast shadow,
-multiple animals, cropped, front view, three-quarter view, blurry, photo, realistic fur
-texture, gradient background`
-- Les couleurs viennent du guide (brun-olive, vert mousse, creme, violet nuit...) : la
-  palette du jeu sera imposee a la pixelisation, mais partir de teintes proches evite les
-  virages de couleur.
-- « pixel art » dans le prompt SDXL donne souvent un faux pixel (grille irreguliere) : on
-  prefere une image propre en aplats (cel shading) et c'est pixel-fixer qui pixelise.
+## Modele de prompt « nouvelles propositions » (anglais ; {N} remplace par le script)
+```
+Your ONLY task: use your built-in image generation tool to create {N} images, and save each one
+as a PNG file in the current working directory, named seed1.png ... seed{N}.png. Do not write
+code, do not install anything, do not run any other commands except what is strictly needed to
+save the generated images. Do not access the network except for the image generation itself.
 
-## Pixelisation (scripts/pixelize.py -> pixel-fixer)
-- Avant reduction : detourage, ombre grise retiree, aplats HD (`--simplify 12` couleurs).
-- `--method cells` (defaut) : couleur majoritaire par cellule, un sombre qui couvre >= 28 %
-  de la cellule gagne (garde pupille, bouche, contour). `--method pixel-fixer` : outil de
-  l'utilisateur, meilleur pour les grands sprites ; a 24 px il perd les petits traits.
-- `--height` / `--width` : taille cible du guide (le sujet tient dans la boite).
-- `--detail 1..5` (pixel-fixer seulement, defaut 3) : 2 = plus simple, 4 = plus fidele.
-- `--outline selective|darkest|none` ; `--flip` si le sujet regarde a gauche ;
-  `--bg-tol` 30-60 si le detourage mange le sujet (baisser) ou laisse le fond (monter).
+Subject: a pixel art sprite of a <SUJET> for a 2D side-scrolling platformer game.
+Attached: Image 1 = style reference (copy its DRAWING STYLE: clean simple shapes, pale muted
+natural colors, soft shading, crisp dark outline). Image 2 = current in-game sprite (anatomy
+reference and level of detail to EXCEED).
+Requirements:
+- Real pixel art: regular square pixel grid, no anti-aliasing, no blur, no gradients, no
+  dithering grain. The sprite about <H> pixels tall on its grid (see size rule below), shown
+  upscaled with nearest-neighbor so every pixel is a crisp square.
+- Plain pure white background, no ground, no shadow, no text, no frame; centered with margin.
+- Pose: <POSE NATURELLE, ex. crouching on 4 legs, side or slight three-quarter view facing right>.
+- Clean and readable above all: bold continuous dark outline, clearly separated parts.
+- Eye well drawn (iris, pupil, small highlight, on the side of the head), mouth line.
+- Details as neat organized shapes with crisp edges (not random specks).
+- Soft regular shading from the top-left, 3-4 value ramps per color.
+- Muted natural colors, no bright yellow, no neon, no saturated colors.
+- It must clearly read as a <SUJET>, not <COUSINS ET CONFUSIONS A EVITER>.
+Vary slightly the pose angle and colors between the images.
+When done, reply with just the list of saved file names.
+```
 
-## Table symptome -> correction (une variable a la fois)
-| Defaut vu | Correction a essayer |
+## Modele « garder le champion » (3 images des l'essai 2)
+```
+Your ONLY task: ... create {N} images ... named seed1.png ... seed{N}.png (same rules).
+Attached: Image 1 = a sprite you made before (the CHAMPION). Keep it: same pose, anatomy,
+colors, clean dark outline. Image 2 = style reference. Image 3 = current in-game sprite.
+Redraw image 1 correcting ONLY this defect: <UN DEFAUT, formule concretement : ex. the eye is
+lost at game size - make it bigger: round golden iris ~1/8 of head height, thick black
+horizontal pupil, one white highlight block, dark brow line>.
+Keep the same regular pixel grid (about <H> px tall), no blur, no dithering, plain white
+background. Muted natural colors. Make the {N} images slight variations of the correction.
+When done, reply with just the list of saved file names.
+```
+
+## Taille demandee (grille de Codex)
+Demander une grille adaptee a la taille EN JEU : le sprite natif s'affiche a l'echelle 1
+(`pixelArt: true`). Repere crapaud : le natif de 84 x 62 s'integre ; le crapaud actuel fait
+71 x 56 a l'ecran. Regle : hauteur de grille ~ hauteur a l'ecran du sprite actuel du sujet
+(+10 % au plus). Voir `style/guide.md`.
+
+## Reduction : `scripts/grid_reduce.py` (PAR DEFAUT)
+- Detecte la grille de pixels de l'image Codex (meme irreguliere), 1 case = 1 pixel :
+  resolution native, palette PROPRE de l'image (fusion des quasi-doublons, `--max-colors 32`),
+  fond blanc relie au bord -> transparent, recadrage.
+- Pas de palette du jeu, pas de taille imposee : l'ancienne reduction (64 px + palette du jeu,
+  `pixelize.py`) coutait ~3 points (oeil en tiret, verrues en plaques, couleurs ternies). Elle
+  reste disponible (`--profile petit|detaille --method cells`) mais hors du chemin par defaut.
+- Controle : `measure.py --profile natif --raw BRUT.png` (fidelite au brut, frange blanche).
+- Toujours regarder les sprites a grossissement ENTIER (x4, x6, x8).
+
+## Table defaut -> correction a demander au champion (une a la fois)
+| Defaut vu | Correction a demander |
 |---|---|
-| Sujet faux / mauvaise vue | prompt : preciser l'anatomie et « strict side view », autre graine |
-| Bruit, orphelins, trop de couleurs | `--detail 2`, prompt « flat cel shading, simple shapes » |
-| Bouillie a 1x, details perdus | agrandir la cible de 2-4 px (dans la limite du guide) ou simplifier le sujet |
-| Contour ouvert / clair | `--outline selective` ou `darkest` |
-| Ombre portee collee aux pattes | negatif « cast shadow », `--bg-tol` plus haut |
-| Couleurs qui virent (vert -> gris) | nommer les teintes de la palette dans le prompt |
-| Volume plat | prompt « strong top-left light, three tone shading » |
-| Detourage qui mange le sujet clair | fond « plain pure white » -> essayer « plain light grey background » + `--bg-tol 30` |
-
-## Profil detaille (~64 px) : NET d'abord (grille v3, gout reel de l'utilisateur)
-- Prompt (meilleur a ce jour, 6,5/10) : `clean cel-shaded 2d game sprite of a <sujet> <pose
-  naturelle, ex. crouching on four legs>, three-quarter side view, bold dark outline, flat
-  colors, soft shading, simple readable shapes, <yeux avec pupille>, <bouche>, <peau> with neat
-  round warts, <ventre>, white background`.
-  Negatif : `noisy, grainy, mottled, dirty, speckled, standing upright, text, watermark,
-  scenery, ground, shadow, 3d render, photo` (+ `frog, smooth skin, bright green` pour un crapaud).
-- A eviter : « textured / marbled / heavily textured skin » (donne de la salissure, notee 2-3).
-- LoRA pixel art SDXL : `--lora 120096:0.8` (Pixel Art XL, gratuit via AI Horde) : sources en
-  vrai pixel art, yeux et doigts dessines ; meme note que sans LoRA au premier test.
-- Reduction : `--profile detaille` = cellules en 2 passes, palette du jeu des la HD, fusion des
-  taches de 1-2 px, contour exterieur. `--method pixel-fixer` garde plus de grain : a eviter
-  sauf comparaison.
-- Toujours regarder les sprites a grossissement entier (x4, x8).
-
-## Retouche d'image (img2img) : METHODE PAR DEFAUT des qu'il existe une image de base
-Principe : « garder le champion, corriger un defaut a la fois ». On part d'une image deja
-bonne (l'etalon de style `style/etalon-style.png`, le sprite actuel du jeu, ou le meilleur
-essai precedent) et on la retouche au lieu de retirer au hasard (le texte -> image derive :
-tortue, grenouille, bonhomme).
-- `forge_try.py ... --source <image> --denoise 0.3-0.6` (AI Horde : `source_image` +
-  `source_processing: img2img` + `denoising_strength`, accepte avec la cle de compte).
-  0,3 garde presque tout (nettoyage, couleurs) ; 0,45-0,5 redessine en gardant l'anatomie ;
-  0,55-0,6 change la pose. Si l'essai degrade la base, BAISSER le denoising.
-- Prompt = le STYLE voulu (celui de l'etalon : « pale olive, cream belly, soft simple shading,
-  few colors, clean shapes, bold dark outline ») + la correction visee (yeux dessines,
-  verrues nettes, 4 pattes...). Negatif : bruit, couleurs criardes, autres animaux evoques.
-- Essai suivant : prendre comme `--source` l'image HD (`seedX.hd.png` ou `raw/seedX.webp`)
-  du meilleur essai et corriger SON defaut principal releve par les juges.
-- ControlNet (`--control canny|hed|depth`) : forme imposee par la base, seulement avec un
-  modele SD 1.5 (ex. `--model Deliberate`) ; voir learnings.md pour l'essai.
+| Oeil perdu ou en tiret a la taille du jeu | oeil plus grand et plus simple : iris rond, pupille epaisse, reflet, ligne de sourcil |
+| Bouche absente | ligne de bouche sombre du museau jusque sous l'oeil |
+| Taches ou verrues en carres plats / grain | moins de verrues, plus grosses, rondes, clair dessus et sombre dessous ; pas de petits points |
+| Couleurs criardes | olive, olive-brun, creme ; pas de jaune vif ni de vert fluo |
+| Lu comme un autre animal ou objet | renforcer l'anatomie typique du sujet ; supprimer l'element trompeur (ex. dos en dome a pois = tortue) |
+| Pose « bonhomme » | pose naturelle de l'animal |
+| Contour ronge ou flou | contour sombre continu de 1 case |

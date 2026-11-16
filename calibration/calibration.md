@@ -23,6 +23,11 @@ l'utilisateur. A completer apres chaque livraison (demander sa note, ajouter une
 | crapaud-codex-brut.png | image brute Codex (non reduite, HD) | **7,25** (« 7 voire 7,5 ») | - | SA MEILLEURE NOTE : la meilleure image source vue. |
 | crapaud-codex-reduit1.png | la meme famille reduite par le skill (64 px, palette) | **4** | 6,5 | La reduction a fait perdre ~3 points : oeil en tiret, verrues en plaques, couleurs ternies. |
 | crapaud-codex-reduit2.png | idem | **4** | 6,5 | Idem : juges trop genereux de 2,5 sur une image propre qui a perdu son oeil. |
+| crapaud-retoucheA.png | retouche AI Horde (base orange) | **~2** (valeur approximative, il n'a pas donne de chiffre) | v3.2 : 6,5 | « les 3 sont horribles, oublie l'outil gratuit ». |
+| crapaud-retoucheB.png | retouche AI Horde (base etalon) | **~2** (approx.) | v3.2 : 5 | idem |
+| crapaud-retoucheC.png | retouche AI Horde (champion A corrige) | **~2** (approx.) | v3.2 : 6,5 | idem |
+Reference haute NON notee par l'utilisateur : `crapaud-codex-natif3.png` (natif Codex 84 x 62,
+reduit fidelement par `grid_reduce.py` depuis le brut a 7,25 ; juges 7 / 7).
 
 Reference de STYLE (≠ ancre de qualite) : `crapaud-detaille2.png`, copiee en
 `style/etalon-style.png`. Parole de l'utilisateur : « je prefere quand meme le design de la
@@ -103,6 +108,40 @@ ancre orange a 6,75 et borne a 7 sans le surpasser.
 11. Les juges restent trop genereux (~2,5 points) sur une image propre qui a perdu son oeil.
     Regle dure (calculee par `score.py`) : oeil reduit a un tiret ou a un carre plat
     (`oeil_plat`), ou bouche absente (`bouche_absente`) -> **4,5 maximum**.
+
+## Validation des juges v4 (lecteur aveugle + placement par comparaison, 19 images, leave-one-out)
+Note = interpolation du juge entre deux ancres (1,5 brique / 3 detaille3 / 4 codex reduit /
+5,5 essai4 / 6,5 debout / 6,75 orange / 7,25 codex brut), arrondie a 0,5 vers le bas, puis
+plafond du lecteur aveugle (bouche ou oeil absents de sa liste -> 4,5) et plafonds objectifs.
+| Image | Utilisateur | v4 | Ecart |
+|---|---|---|---|
+| essai1 | 4 | 3 | -1 |
+| essai2 (brique) | 1,5 | 1 | -0,5 |
+| essai3 | 4 | 3,5 | -0,5 |
+| essai4 | 5,5 | 6 | +0,5 |
+| essai5 | 4 | 5 | +1 |
+| essai6 | 5,5 | 2,5 | -3 |
+| detaille1 | 2 | 3,5 | +1,5 |
+| detaille2 (debout) | 6,5 | 3,5 | -3 |
+| detaille3 | 3 | 2,5 | -0,5 |
+| net1 | 5,5 | 3 | -2,5 |
+| net2 | 4,5 | 3,5 | -1 |
+| net3 (tortue) | 1,5 | 3,5 | +2 |
+| orange actuel | 6,75 | 6,5 | -0,25 |
+| codex brut | 7,25 | 7,5 | +0,25 (classe premier) |
+| codex reduit1 | 4 | 4,5 | +0,5 |
+| codex reduit2 | 4 | 7 | +3 |
+| retouche A | ~2 | 6,5 | +4,5 |
+| retouche B | ~2 | 4,5 | +2,5 |
+| retouche C | ~2 | 5,5 | +3,5 |
+Ecart moyen 1,66 sur 19 (1,31 sur les 16 sans A/B/C ; v3.2 : 1,29 sur 13), ecart max 4,5
+(v3.2 : 5,5). Objectifs (<= 0,8 ; max <= 2 ; net3 <= 2) NON atteints : **v4 non adoptee**,
+la v3.2 reste la methode. Constats : le lecteur aveugle dit « crapaud » pour TOUTES les images
+(meme la brique et la tortue) : ses plafonds de sujet ne servent a rien. Le placement par
+comparaison classe bien le haut (codex brut premier, orange juste) mais rate le gout de
+l'utilisateur sur l'etalon debout (3,5 pour 6,5), les retouches Horde (4,5-6,5 pour ~2) et un
+codex reduit (7 pour 4). C'est un ecart de GOUT que ni la grille ni les comparaisons ne
+comblent pour l'instant.
 
 ## Validation de la grille v3.2 (13 images dont l'orange, leave-one-out, 1 juge par image)
 | Image | Utilisateur | v3.2 | Ecart |

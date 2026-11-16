@@ -1,19 +1,37 @@
 """Mesures objectives d'un sprite (etape 1 de la notation). Pillow seul.
 
-Usage : python -I measure.py SPRITE.png [--profile petit|detaille] [--height H] [--width L]
+Usage : python -I measure.py SPRITE.png [--profile natif|petit|detaille] [--raw BRUT.png] [--height H] [--width L]
         [--palette P.hex] [--json OUT.json]
 
 Chaque test a un seuil ; un seul echec => "plafond": 5 (la note finale ne peut pas depasser 5).
 Seuils expliques dans references/rubric.md (partie A).
 """
-import argparse, json, os, sys
+import argparse, json, math, os, sys
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from forge_lib import load_palette, lab, lum, components, N4, N8, PALETTE, PROFILES, DEFAULT_PROFILE
 
 
-def measure(path, th, tw, palette, profile=DEFAULT_PROFILE):
+def fidelity(sprite, raw_path):
+    """Ecart de couleur moyen (Lab) entre chaque pixel opaque du sprite et la meme zone du brut
+    (brut recadre sur le non-blanc, reduit a la taille du sprite par moyenne)."""
+    r = Image.open(raw_path).convert("RGB")
+    g = r.point(lambda v: 255 if v < 232 else 0).convert("L")
+    bb = g.getbbox()
+    if bb:
+        r = r.crop(bb)
+    r = r.resize(sprite.size, Image.BOX)
+    sp, rp = sprite.load(), r.load()
+    tot = n = 0
+    for y in range(sprite.height):
+        for x in range(sprite.width):
+            if sp[x, y][3] == 255:
+                tot += math.dist(lab(sp[x, y][:3]), lab(rp[x, y])); n += 1
+    return tot / max(1, n)
+
+
+def measure(path, th, tw, palette, profile=DEFAULT_PROFILE, raw=None):
     P = PROFILES[profile]
     cmin, cmax = P["colors"]
     im = Image.open(path).convert("RGBA")
@@ -72,9 +90,17 @@ def measure(path, th, tw, palette, profile=DEFAULT_PROFILE):
     tol_h, tol_w = max(2, round(th * 0.07)), max(2, round((tw or 0) * 0.07))
     size_ok = (th - tol_h <= h or (tw and tw - tol_w <= w)) and h <= th and (not tw or w <= tw)
 
-    tests = [
-        ("taille", f"{w}x{h} (cible h={th}{', l<=' + str(tw) if tw else ''})", size_ok),
-        ("hors_palette", f"{off} px", off == 0),
+    # frange blanche : bord du sprite reste blanc du fond (detourage rate)
+    fringe = sum(1 for x, y in edge if min(px[x, y][:3]) > 215) / max(1, len(edge))
+    if P.get("size_range"):  # profil natif : taille libre dans une plage adaptee au jeu
+        smin, smax = P["size_range"]
+        size_test = ("taille", f"{w}x{h} (hauteur {smin}-{smax})", smin <= h <= smax)
+    else:
+        size_test = ("taille", f"{w}x{h} (cible h={th}{', l<=' + str(tw) if tw else ''})", size_ok)
+    tests = [size_test]
+    if P.get("palette", True):
+        tests.append(("hors_palette", f"{off} px", off == 0))
+    tests += [
         ("semi_transparents", f"{semi} px", semi == 0),
         ("pixels_isoles", f"{isolated} px", isolated == 0),
         ("orphelins_couleur", f"{orph / n:.1%} des px opaques (max {P['orphans']:.0%})", orph / n <= P["orphans"]),
@@ -85,7 +111,12 @@ def measure(path, th, tw, palette, profile=DEFAULT_PROFILE):
         ("contraste_valeurs", f"L* {lo:.0f}->{hi:.0f}, ecart {contrast:.0f} (min 45)", contrast >= 45),
         ("bruit", f"{noise:.0%} de voisins de couleur differente (max {P['noise']:.0%})", noise <= P["noise"]),
         ("salissure", f"{specks:.1%} des px en taches de 1-2 px (max {P['specks']:.0%})", specks <= P["specks"]),
+        ("frange_blanche", f"{fringe:.0%} du bord quasi blanc (max 5 %)", fringe <= 0.05),
     ]
+    if raw:  # fidelite au brut : le natif doit rester proche de l'image generee
+        fid = fidelity(im, raw)
+        tests.append(("fidelite_brut", f"ecart moyen dE {fid:.1f} avec le brut reduit (max {P.get('fidelity', 14)})",
+                      fid <= P.get("fidelity", 14)))
     failed = [t[0] for t in tests if not t[2]]
     return {
         "sprite": path, "profil": profile, "size": [w, h], "opaque_px": len(ops), "colors": len(used),
@@ -102,9 +133,11 @@ def main():
     ap.add_argument("--width", type=int, default=-1, help="defaut : celle du profil (0 = libre)")
     ap.add_argument("--palette", default=PALETTE)
     ap.add_argument("--json")
+    ap.add_argument("--raw", default="", help="image brute (profil natif) : test de fidelite")
     a = ap.parse_args()
     P = PROFILES[a.profile]
-    r = measure(a.sprite, a.height or P["height"], P["width"] if a.width < 0 else a.width, a.palette, a.profile)
+    r = measure(a.sprite, a.height or P["height"], P["width"] if a.width < 0 else a.width, a.palette, a.profile,
+                a.raw or None)
     if a.json:
         with open(a.json, "w", encoding="utf-8") as f:
             json.dump(r, f, indent=1, ensure_ascii=False)

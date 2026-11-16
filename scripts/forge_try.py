@@ -1,15 +1,16 @@
-"""Un essai complet : generation (plusieurs graines) -> pixelisation -> mesures -> planches.
+"""Un essai complet : generation Codex -> reduction fidele a la grille -> mesures -> planches.
 
-Usage :
-  python -I forge_try.py --work DIR --essai 1 --profile petit|detaille --prompt "..." \
-      --negative "..." --seeds 11 22 33 [--height H --width L] [--engine horde|pollinations] \
-      [--model "..."] [--method cells|cells2|pixel-fixer] [--orient auto|keep] [--reuse DIR_RAW]
+Usage (essai 1, 6 nouvelles propositions) :
+  python -I forge_try.py --work W --essai 1 --prompt-file NEUF.txt --ref style/etalon-style.png --ref SPRITE_ACTUEL.png
+Usage (essai 2 et suivants : 3 retouches du champion + 3 nouvelles propositions) :
+  python -I forge_try.py --work W --essai 2 --prompt-file NEUF.txt --ref ... \
+      --champion W/essai-1/raw-new/seed2.png --fix-prompt-file CORRIGE.txt
+Repixeliser sans regenerer : --reuse DOSSIER_BRUTS (un ou plusieurs).
 
-Le profil fixe les valeurs par defaut (taille, couleurs, methode, echelle ecran de la planche) :
-voir PROFILES dans forge_lib.py. Profil par defaut : "petit" (l'utilisateur n'a pas tranche).
-Ecrit DIR/essai-<n>/ : raw/ (images HD), seed<k>.png (sprite), seed<k>.x8.png, seed<k>.board.png,
-seed<k>.measure.json, et essai.json (parametres + tableau des mesures). Affiche le tableau.
---reuse : repixeliser les images HD d'un essai precedent sans regenerer.
+Dans les fichiers de prompt, {N} est remplace par le nombre d'images demandees.
+Ecrit W/essai-n/ : raw-new/ et raw-fix/ (bruts Codex), <src>-seedK.png (sprite natif),
+<src>-seedK.x8.png (fond blanc, agrandi), .board.png, .measure.json (dont fidelite au brut),
+essai.json (tableau). Profil par defaut : natif (grid_reduce, palette propre de l'image).
 """
 import argparse, glob, json, os, subprocess, sys
 
@@ -24,97 +25,91 @@ def run(args):
     return r.returncode, r.stdout + r.stderr
 
 
+def gen(prompt_file, out, refs, n, d, tag):
+    txt = open(prompt_file, encoding="utf-8").read().replace("{N}", str(n))
+    pf = os.path.join(d, f"prompt-{tag}.txt")
+    with open(pf, "w", encoding="utf-8") as f:
+        f.write(txt)
+    args = [os.path.join(HERE, "generate.py"), "--out", out, "--prompt-file", pf, "--n", str(n)]
+    for r in refs:
+        args += ["--ref", r]
+    return run(args)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", required=True)
     ap.add_argument("--essai", type=int, required=True)
     ap.add_argument("--profile", default=DEFAULT_PROFILE, choices=sorted(PROFILES))
-    ap.add_argument("--prompt", default="")
-    ap.add_argument("--negative", default="")
-    ap.add_argument("--seeds", type=int, nargs="+", default=[11, 22, 33])
-    ap.add_argument("--engine", default="horde")
-    ap.add_argument("--model", default="AlbedoBase XL (SDXL)")
-    ap.add_argument("--size", type=int, default=768)
-    ap.add_argument("--height", type=int, default=0, help="defaut : profil")
-    ap.add_argument("--width", type=int, default=-1, help="defaut : profil")
-    ap.add_argument("--detail", type=int, default=3)
-    ap.add_argument("--outline", default="outside")
-    ap.add_argument("--orient", default="auto", choices=["auto", "keep"],
-                    help="auto = retourne le sprite s'il semble regarder a gauche (heuristique)")
-    ap.add_argument("--flip-seeds", nargs="*", default=[], help="forcer le miroir de ces graines (ex. seed201)")
-    ap.add_argument("--method", default="", choices=["", "cells", "cells2", "pixel-fixer"])
-    ap.add_argument("--simplify", type=int, default=0)
+    ap.add_argument("--prompt-file", default="", help="prompt des nouvelles propositions")
+    ap.add_argument("--ref", action="append", default=[], help="etalon de style, sprite actuel du sujet...")
+    ap.add_argument("--n", type=int, default=6, help="images par essai (quota : 6)")
+    ap.add_argument("--champion", default="", help="meilleure image brute de l'essai precedent")
+    ap.add_argument("--fix-prompt-file", default="", help="prompt de correction du champion (UN defaut)")
+    ap.add_argument("--reuse", nargs="*", default=[])
+    ap.add_argument("--method", default="", choices=["", "grid", "cells", "cells2", "pixel-fixer"],
+                    help="grid = defaut (natif) ; cells/pixel-fixer = ancienne reduction (profils petit/detaille)")
     ap.add_argument("--max-colors", type=int, default=0)
-    ap.add_argument("--bg-tol", type=int, default=40)
-    ap.add_argument("--lora", default="", help="LoRA AI Horde, ex. 120096:0.8 (Pixel Art XL)")
-    ap.add_argument("--source", default="", help="image de base a retoucher (img2img) : methode par defaut des qu'on a un champion")
-    ap.add_argument("--denoise", type=float, default=0.45, help="force de retouche (0,3 garde la base, 0,6 la change)")
-    ap.add_argument("--control", default="", help="ControlNet (SD 1.5 seulement)")
-    ap.add_argument("--reuse", default="")
     ap.add_argument("--label", default="")
     a = ap.parse_args()
     P = PROFILES[a.profile]
-    height = a.height or P["height"]
-    width = P["width"] if a.width < 0 else a.width
     method = a.method or P["method"]
-    simplify = a.simplify or P["simplify"]
-    max_colors = a.max_colors or P["max_colors"]
+    max_colors = a.max_colors or P.get("max_colors", 32)
 
     d = os.path.join(a.work, f"essai-{a.essai}")
-    raw = a.reuse or os.path.join(d, "raw")
     os.makedirs(d, exist_ok=True)
-    gen_out = ""
-    if not a.reuse:
-        code, gen_out = run([os.path.join(HERE, "generate.py"), "--prompt", a.prompt, "--negative", a.negative,
-                             "--out", raw, "--engine", a.engine, "--model", a.model, "--size", str(a.size),
-                             "--seeds"] + [str(s) for s in a.seeds] + (["--lora", a.lora] if a.lora else [])
-                            + (["--source", a.source, "--denoise", str(a.denoise)] if a.source else [])
-                            + (["--control", a.control] if a.control else []))
-    files = sorted(f for f in glob.glob(os.path.join(raw, "seed*.*")) if not f.endswith(".json"))
+    logs = []
+    raws = list(a.reuse)
+    if not raws:
+        if a.champion and a.fix_prompt_file:
+            k = a.n // 2
+            out = os.path.join(d, "raw-fix")
+            logs.append(gen(a.fix_prompt_file, out, [a.champion] + a.ref, k, d, "fix")[1]); raws.append(out)
+            out = os.path.join(d, "raw-new")
+            logs.append(gen(a.prompt_file, out, a.ref, a.n - k, d, "new")[1]); raws.append(out)
+        else:
+            out = os.path.join(d, "raw-new")
+            logs.append(gen(a.prompt_file, out, a.ref, a.n, d, "new")[1]); raws.append(out)
     rows = []
-    for f in files:
-        seed = os.path.splitext(os.path.basename(f))[0]
-        sprite = os.path.join(d, seed + ".png")
-        args = [os.path.join(HERE, "pixelize.py"), f, sprite, "--height", str(height), "--detail", str(a.detail),
-                "--outline", a.outline, "--bg-tol", str(a.bg_tol), "--method", method,
-                "--simplify", str(simplify), "--max-colors", str(max_colors),
-                "--orient", "flip" if seed in a.flip_seeds else a.orient]
-        if width:
-            args += ["--width", str(width)]
-        if P.get("palette_first"):
-            args.append("--palette-first")
-        if P.get("despeckle"):
-            args += ["--despeckle", str(P["despeckle"])]
-        if f.endswith(".jpg"):
-            args.append("--mask-logo")
-        code, out = run(args)
-        if code != 0 or not os.path.exists(sprite):
-            rows.append({"seed": seed, "erreur": out[-300:]})
-            continue
-        m = measure(sprite, height, width, PALETTE, a.profile)
-        with open(os.path.join(d, seed + ".measure.json"), "w", encoding="utf-8") as fh:
-            json.dump(m, fh, indent=1, ensure_ascii=False)
-        run([os.path.join(HERE, "board.py"), sprite, os.path.join(d, seed + ".board.png"),
-             "--label", f"essai {a.essai} {seed} {a.label}", "--screen-scale", str(P["screen_scale"])])
-        from PIL import Image
-        im = Image.open(sprite)
-        z = 8 if max(im.size) <= 40 else 4
-        im.resize((im.width * z, im.height * z), Image.NEAREST).save(os.path.join(d, seed + ".x8.png"))
-        rows.append({"seed": seed, "sprite": sprite, "taille": m["size"], "couleurs": m["colors"],
-                     "plafond": m["plafond"], "echecs": m["echecs"]})
-    info = {"essai": a.essai, "profil": a.profile, "params": vars(a), "generation": gen_out[-1500:], "resultats": rows}
+    from PIL import Image
+    for rd in raws:
+        tag = os.path.basename(os.path.normpath(rd)).replace("raw-", "") or "raw"
+        for f in sorted(glob.glob(os.path.join(rd, "seed*.png")) + glob.glob(os.path.join(rd, "seed*.webp"))):
+            name = f"{tag}-{os.path.splitext(os.path.basename(f))[0]}"
+            sprite = os.path.join(d, name + ".png")
+            if method == "grid":
+                args = [os.path.join(HERE, "grid_reduce.py"), f, sprite, "--max-colors", str(max_colors)]
+            else:
+                args = [os.path.join(HERE, "pixelize.py"), f, sprite, "--height", str(P["height"]),
+                        "--width", str(P["width"]), "--method", method, "--max-colors", str(max_colors)]
+            code, out = run(args)
+            if code != 0 or not os.path.exists(sprite):
+                rows.append({"image": name, "brut": f, "erreur": out[-300:]})
+                continue
+            im = Image.open(sprite).convert("RGBA")
+            m = measure(sprite, P["height"] or im.height, P["width"], PALETTE, a.profile,
+                        raw=f if method == "grid" else None)
+            with open(os.path.join(d, name + ".measure.json"), "w", encoding="utf-8") as fh:
+                json.dump(m, fh, indent=1, ensure_ascii=False)
+            run([os.path.join(HERE, "board.py"), sprite, os.path.join(d, name + ".board.png"),
+                 "--label", f"essai {a.essai} {name} {a.label}", "--screen-scale", str(P["screen_scale"])])
+            z = 8 if max(im.size) <= 64 else 6
+            bg = Image.new("RGBA", im.size, (255, 255, 255, 255)); bg.alpha_composite(im)
+            bg.resize((im.width * z, im.height * z), Image.NEAREST).save(os.path.join(d, name + ".x8.png"))
+            rows.append({"image": name, "brut": f, "sprite": sprite, "taille": m["size"], "couleurs": m["colors"],
+                         "plafond": m["plafond"], "echecs": m["echecs"]})
+    info = {"essai": a.essai, "profil": a.profile, "params": vars(a), "generation": [l[-1500:] for l in logs], "resultats": rows}
     with open(os.path.join(d, "essai.json"), "w", encoding="utf-8") as fh:
         json.dump(info, fh, indent=1, ensure_ascii=False)
-    print(f"essai {a.essai} ({a.profile}) -> {d}")
+    print(f"essai {a.essai} ({a.profile}, {method}) -> {d}")
     for r in rows:
         if "erreur" in r:
-            print(f"  {r['seed']}: ERREUR {r['erreur']}")
+            print(f"  {r['image']}: ERREUR {r['erreur']}")
         else:
-            print(f"  {r['seed']}: {r['taille'][0]}x{r['taille'][1]} px, {r['couleurs']} coul., plafond {r['plafond']}"
+            print(f"  {r['image']}: {r['taille'][0]}x{r['taille'][1]} px, {r['couleurs']} coul., plafond {r['plafond']}"
                   + (f" (echecs : {', '.join(r['echecs'])})" if r["echecs"] else ""))
     if not rows:
-        print("  aucune image : voir essai.json (generation)")
-        print(gen_out[-800:])
+        print("  aucune image : voir raw-*/codex-log.txt")
 
 
 if __name__ == "__main__":
