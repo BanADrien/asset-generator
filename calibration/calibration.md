@@ -32,6 +32,12 @@ ce trait.
 | crapaud-retoucheB.png | retouche AI Horde (base etalon) | **~2** (approx.) | v3.2 : 5 | idem |
 | crapaud-retoucheC.png | retouche AI Horde (champion A corrige) | **~2** (approx.) | v3.2 : 6,5 | idem |
 | crapaud-codex6-1.png a crapaud-codex6-6.png | 6 natifs Codex (essai x6, crapaud realiste trapu a verrues) | **7** chacune ; PREFERE : n°4 | 7 / ecarte / 8 / ecarte / ecarte / 7,5 | Le n°4 (brun-beige) avait ete ECARTE au tri. Technique acquise ; manque la DIRECTION ARTISTIQUE (style, forme). Les 6 jugees « quasi identiques ». |
+| crapaud-dir-mascotte.png | direction « Mascotte ronde » (chibi, vert pastel) | **3** | - | Stylise/chibi : rejete. |
+| crapaud-dir-anguleux.png | direction « Anguleux stylise » (ocre, langue sortie) | **5** | - | Le mieux note des stylises, le plus « animal reel ». |
+| crapaud-dir-cartoon.png | direction « Cartoon a caractere » (rouge vif) | **3** | - | Cartoon, couleurs saturees : rejete. |
+| crapaud-dir-aventurier.png | direction « Aventurier » (sauge, echarpe, sacoche) | **4** | - | Personnage semi-debout stylise : moyen. |
+| crapaud-dir-marais.png | direction « Creature de marais sombre » (bleu-violet) | **2** | - | Fantaisie, couleurs non naturelles : rejete. |
+| crapaud-dir-totem.png | direction « Totem minimal » (turquoise, 4 couleurs) | **1** | - | Plat et simplifie : le pire. |
 Reference haute NON notee par l'utilisateur : `crapaud-codex-natif3.png` (natif Codex 84 x 62,
 reduit fidelement par `grid_reduce.py` depuis le brut a 7,25 ; juges 7 / 7).
 
@@ -214,3 +220,26 @@ la forme : les 6 etaient trapues (correction de l'utilisateur : « je prefere pa
 ramasse, vu que j'ai pas eu de choix contraire »). La « patte fondue dans le flanc » ne le gene
 pas : le tri etait trop severe. Encore un cas ou les juges (n°3 a 8) et lui (n°4, ecarte)
 divergent : les juges trient la technique, il choisit.
+
+## Notes de l'essai des 6 directions (16/11/2026)
+Mascotte ronde 3 ; Anguleux stylise 5 ; Cartoon 3 ; Aventurier 4 ; Marais sombre 2 ; Totem
+minimal 1. Rappel : les 6 crapauds realistes de l'essai Codex x6 = 7 chacun, n°4 prefere.
+
+Lecture (interpretation de Claude ; valide au sens de la regle de methode, car ces options
+s'opposaient vraiment) :
+- Rendu NATURALISTE et detaille (7) >> stylise, cartoon, chibi, minimal (1 a 5). La voie vers
+  8 reste dans la famille realiste.
+- Couleurs naturelles > couleurs saturees ou fantaisie : turquoise 1, bleu-violet 2, rouge vif
+  3, vert pastel 3, contre ocre 5, sauge 4, bruns et olives 7.
+- Plus le dessin est plat et simplifie, plus la note baisse (totem 1) : il veut du modele et du
+  detail.
+- Le mieux note des stylises (anguleux, 5) est aussi le plus « animal reel » : anatomie de
+  crapaud, teintes naturelles, pose dynamique langue sortie. Hypothese A TESTER : une pose
+  dynamique et du caractere plaisent, a condition de rester realiste.
+- « j'aime pas le style actuel, j'aime pas la forme » vise donc la FORME et le TRAITEMENT a
+  l'interieur du realisme (meme crapaud trapu de profil, verrues en « pois » reguliers), pas le
+  realisme lui-meme.
+
+Ajout de l'utilisateur sur la direction n°2 « Anguleux stylise » (notee 5) : « j'aime bien
+anguleux, rajoute plus de tests avec cette vision (pas trop non plus) ». -> 3 essais anguleux
+(plus modele, pose, en action) ajoutes a l'essai des formes naturalistes.

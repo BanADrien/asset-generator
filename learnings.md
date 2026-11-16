@@ -114,3 +114,12 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   Mesure `fidelite_brut` en echec sur 5/6 alors que la reduction est fidele a l'oeil : artefact
   d'alignement sur les dessins a aplats tres contrastes, a recaler. Le totem a grosse grille
   sort a 123x80 (Codex n'a pas tenu ~84x62).
+- 2026-11-16 - notes des 6 directions : naturaliste 7 >> stylises 1-5 (anguleux 5, totem 1).
+  Rester dans le realisme et les couleurs naturelles ; faire varier la forme, la pose et le
+  traitement (essai 3 : 6 formes naturalistes opposees).
+- 2026-11-16 - essai des formes naturalistes (6 + 3 anguleuses, ~3 min) : formes bien
+  distinctes, mais Codex depasse encore la taille (jusqu'a 136x81 malgre « never more than
+  90 x 66 ») ; les rendus peints echouent salissure/contour sans etre sales a l'oeil. Avec
+  l'image de reference jointe, « Anguleux pose » l'a presque recopiee (orange compris) : une
+  reference de style tire vers la copie, preciser ce qui doit changer. Petits trous blancs
+  (< 9 cases) entre les pattes gardes blancs par la reduction (crapaud doux) : a traiter.
