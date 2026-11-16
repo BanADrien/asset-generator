@@ -102,7 +102,7 @@ def unique_path(folder, name):
 PROFILES = {
     "petit": {"height": 24, "width": 32, "colors": (5, 20), "orphans": 0.12, "frag": 2, "noise": 0.55,
               "simplify": 12, "max_colors": 12, "method": "cells", "screen_scale": 64 / 24},
-    "detaille": {"height": 60, "width": 80, "colors": (12, 48), "orphans": 0.18, "frag": 6, "noise": 0.65,
+    "detaille": {"height": 60, "width": 80, "colors": (8, 48), "orphans": 0.18, "frag": 6, "noise": 0.65,
                  "simplify": 40, "max_colors": 40, "method": "cells2", "screen_scale": 1.0},
 }
 DEFAULT_PROFILE = "petit"

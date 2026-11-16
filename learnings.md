@@ -37,3 +37,13 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
 - 2026-11-16 - calibration - l'utilisateur veut du « detaille, realiste » ; ses reproches :
   contours pas definis, peu de texture, elements mal distingues ; prefere l'essai 6 (masse
   ronde, peau marbree). Le crapaud propre mais plat dessine en code est « nul ».
+- 2026-11-16 - crapaud profil detaille (3 essais : 5 / 4,5 / 4,5) - (+) a 60 px l'oeil, le
+  ventre et la texture marbree passent enfin ; juges : texture reussie. (-) SDXL dessine le
+  crapaud de face ou debout (« bonhomme ») ; oeil/bouche/patte avant restent fondus ;
+  « 2d creature illustration, bold ink » donne des encres fines qui deviennent des tirets.
+  Regle : comparer `--method cells` et `pixel-fixer` sur les memes images (`--reuse`) ;
+  pixel-fixer garde plus de texture a cette taille, cells est plus net mais plus plat.
+  Correction pendant la boucle : minimum de couleurs du profil detaille passe de 12 a 8
+  (la palette du jeu donne 10-11 couleurs sur un sprite propre).
+- 2026-11-16 - AI Horde - la cle de compte (sans kudos) n'accelere pas beaucoup : ~10 min
+  par essai de 3 images dans les deux cas aux heures chargees.

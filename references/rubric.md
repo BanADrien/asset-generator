@@ -21,7 +21,7 @@ Tests qui dependent du profil :
 | Test | petit (24-30 px) | detaille (~64 px) |
 |---|---|---|
 | taille | hauteur ou largeur a 2 px de la cible, jamais au-dessus | idem (cible du profil) |
-| couleurs_utilisees | 5-20 | 12-48 |
+| couleurs_utilisees | 5-20 | 8-48 (minimum 12 corrige a 8 le 16/11 : la palette du jeu donne 10-11 couleurs sur un crapaud propre) |
 **Un seul echec => plafond 5/10.**
 
 ## B. Jugement visuel (juge separe, voir `judge-prompt.md`)
