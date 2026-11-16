@@ -197,7 +197,33 @@ def main():
             bg[j][i] = True
             stack += [(i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)]
     # trous de fond enfermes (entre une patte et le ventre) : composantes blanches de >= 4 cases ;
-    # le reflet de l'oeil (1-3 cases) reste blanc
+    # le reflet de l'oeil (1-3 cases) et le blanc d'un oeil (qui entoure la pupille) restent blancs
+    # distance (en cases) au fond exterieur : un vrai trou de fond (entre patte et ventre) est
+    # colle au bord de la silhouette ; un reflet ou un blanc d'oeil est loin a l'interieur
+    INF = 10 ** 6
+    dist = [[0 if bg[j][i] else INF for i in range(gw)] for j in range(gh)]
+    q = [(i, j) for j in range(gh) for i in range(gw) if bg[j][i]]
+    k = 0
+    while k < len(q):
+        i, j = q[k]; k += 1
+        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            ni, nj = i + di, j + dj
+            if 0 <= ni < gw and 0 <= nj < gh and dist[nj][ni] > dist[j][i] + 1:
+                dist[nj][ni] = dist[j][i] + 1
+                q.append((ni, nj))
+    def encloses(comp):
+        # blanc d'oeil : la zone blanche entoure une pupille (cases non blanches enfermees dedans) -> on la garde
+        cs = set(comp)
+        x0 = min(i for i, _ in comp) - 1; x1 = max(i for i, _ in comp) + 1
+        y0 = min(j for _, j in comp) - 1; y1 = max(j for _, j in comp) + 1
+        out_, st = set(), [(x0, y0)]
+        while st:
+            i, j = st.pop()
+            if (i, j) in out_ or (i, j) in cs or not (x0 <= i <= x1 and y0 <= j <= y1):
+                continue
+            out_.add((i, j))
+            st += [(i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)]
+        return (x1 - x0 + 1) * (y1 - y0 + 1) - len(out_) - len(cs) > 0
     seen = [[False] * gw for _ in range(gh)]
     for j0 in range(gh):
         for i0 in range(gw):
@@ -213,7 +239,7 @@ def main():
                     if 0 <= ni < gw and 0 <= nj < gh and not seen[nj][ni] and not bg[nj][ni] and white(cells[nj][ni]):
                         seen[nj][ni] = True
                         st.append((ni, nj))
-            if len(comp) >= 9:
+            if len(comp) >= 9 and not encloses(comp) and min(dist[j][i] for i, j in comp) <= 4:
                 for i, j in comp:
                     bg[j][i] = True
     fg = [cells[j][i] for j in range(gh) for i in range(gw) if not bg[j][i]]

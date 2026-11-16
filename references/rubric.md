@@ -86,7 +86,9 @@ utilisateur, et situer le candidat par rapport a elles, en comparant DIRECTEMENT
    `depasse_orange` : **7 maximum**.
 5. 8 ou plus exige criteres 1 et 4 >= 8 ; sinon 7,5 maximum.
 6. Deux juges independants ; **on garde la plus basse**. Puis min avec le plafond objectif (A).
-7. Seuil de livraison : **8/10**. En dessous, on corrige et on recommence.
+7. Les juges ne notent que la TECHNIQUE : **7 maximum** (le script plafonne). Au-dela de 7,
+   c'est la direction artistique, notee par l'utilisateur seul.
+8. Seuil de livraison : **8/10**, donne par l'utilisateur. En dessous, on corrige et on recommence.
 
 Historique (sans notes d'images, pour ne rien souffler aux juges) : v1 densite des tuiles,
 v2/v2.1 volume et « texture », v3 nettete d'abord et mesure « salissure », v3.1 sujet faux

@@ -11,7 +11,15 @@
   s'il existe, le sprite actuel du sujet dans le jeu (reference d'anatomie et de detail a depasser).
 - QUOTA de l'utilisateur (« fais-les par 6 ») : **6 images par essai, 4 essais maximum par
   sprite**, arret des 8/10.
-- Essai 1 : 6 nouvelles propositions. **Des l'essai 2 : 3 images partent du champion** (la
+- **Essai 1 d'un nouveau sujet = 6 DIRECTIONS ARTISTIQUES** reellement differentes, nommees,
+  qui varient style de dessin, forme/proportions ET palette (pas six verts olive). Un prompt et
+  une generation Codex par direction (`generate.py --n 1`), sans image de reference commune : une
+  reference tire tout vers le meme dessin ; ne la joindre qu'a la direction qui s'en reclame.
+  Exemples de directions (crapaud, 16/11/2026) : mascotte ronde chibi ; anguleux stylise ;
+  cartoon a caractere ; aventurier semi-debout assorti au heros ; creature de marais sombre ;
+  totem minimal 5-6 couleurs.
+- Essais suivants : creuser la ou les directions choisies par l'utilisateur.
+  **Des l'essai 2 : 3 images partent du champion** (la
   meilleure image brute, jointe en premier, avec UN defaut a corriger) **+ 3 nouvelles
   propositions** (`forge_try.py --champion ... --fix-prompt-file ...`).
 - AI Horde et Pollinations ont ete abandonnes le 16/11/2026 (voir learnings.md).
@@ -39,7 +47,8 @@ Requirements:
 - Soft regular shading from the top-left, 3-4 value ramps per color.
 - Muted natural colors, no bright yellow, no neon, no saturated colors.
 - It must clearly read as a <SUJET>, not <COUSINS ET CONFUSIONS A EVITER>.
-Vary slightly the pose angle and colors between the images.
+(Modele d'un essai qui CREUSE une direction choisie. Pour l'essai 1 : un prompt par
+direction, avec un bloc « ART DIRECTION » qui fixe style, forme et palette.)
 When done, reply with just the list of saved file names.
 ```
 

@@ -6,6 +6,8 @@
    - ecartee au tri (lecteur aveugle + mesures, pas de juges) :
               python -I history.py record --work W --essai 2 --seed new-seed3 --ecarte "bouche absente (lecteur)"
    -> W/essai-2/fiche-<seed>.json et .md (le sprite reste W/essai-2/<seed>.png).
+   - essai de DIRECTIONS (pas de juges) :
+              python -I history.py record --work W --essai 2 --seed seed1 --titre "Mascotte ronde" --technique "technique OK"
 2) A la livraison :
    python -I history.py board --work W --out W/historique.png
    [--zoom 5 --cols 3] (planche a montrer a l'utilisateur : grande, numerotee 1-6)
@@ -36,11 +38,14 @@ def record(a):
     sprite = os.path.join(d, a.seed + ".png")
     fiche = {"essai": a.essai, "seed": a.seed, "sprite": sprite, "board": os.path.join(d, a.seed + ".board.png"),
              "note_finale": a.note, "juge1": a.juge1, "juge2": a.juge2, "ecarte": a.ecarte or "",
-             "plafond_objectif": a.plafond or None, "defauts": a.defauts[:3]}
+             "plafond_objectif": a.plafond or None, "defauts": a.defauts[:3],
+             "titre": a.titre, "technique": a.technique}
     with open(os.path.join(d, f"fiche-{a.seed}.json"), "w", encoding="utf-8") as f:
         json.dump(fiche, f, indent=1, ensure_ascii=False)
     lines = [f"# Essai {a.essai} ({a.seed})", ""]
-    if a.ecarte:
+    if a.titre:
+        lines.append(f"- Direction : {a.titre} ; technique : {a.technique or '?'}")
+    elif a.ecarte:
         lines.append(f"- Ecarte au tri : {a.ecarte}")
     else:
         lines += [f"- Note finale : {a.note}/10", f"- Juges : {a.juge1} et {a.juge2} (on garde la plus basse)",
@@ -56,7 +61,7 @@ def load_fiches(work):
     for p in glob.glob(os.path.join(work, "essai-*", "fiche*.json")):
         with open(p, encoding="utf-8") as f:
             x = json.load(f)
-        x.setdefault("ecarte", "")
+        x.setdefault("ecarte", ""); x.setdefault("titre", ""); x.setdefault("technique", "")
         fiches.append(x)
     return fiches
 
@@ -82,6 +87,8 @@ def board(a):
         rows = [r[i:i + a.cols] for r in rows for i in range(0, len(r), a.cols)]
 
     def text(f):
+        if f["titre"]:
+            return textwrap.wrap("technique : " + (f["technique"] or "?"), wrap)
         if f["ecarte"]:
             return textwrap.wrap("ecarte au tri : " + f["ecarte"], wrap)
         t = [f"juges : {f['juge1']} / {f['juge2']}"]
@@ -102,7 +109,11 @@ def board(a):
             rows_num[id(f)] = k[f["essai"]]
     out = Image.new("RGBA", (W, H), BG)
     d = ImageDraw.Draw(out)
-    d.text((16, 12), "Historique (une ligne par essai) - note finale = plus basse des 2 juges, plafonnee par les mesures ;"
+    if all(f["titre"] for f in fiches):
+        d.text((16, 12), "Directions artistiques - sous chaque image : nom de la direction et etat technique (pas de note des juges)",
+               fill=DIM, font=f_txt)
+    else:
+      d.text((16, 12), "Historique (une ligne par essai) - note finale = plus basse des 2 juges, plafonnee par les mesures ;"
            " images ecartees au tri : motif", fill=DIM, font=f_txt)
     y = 40
     for r in rows:
@@ -116,7 +127,9 @@ def board(a):
             out.alpha_composite(big, (x0 + (cw - big.width) // 2, y0 + top + ih - big.height))
             d.text((x0 + 10, y0 + 6), str(rows_num[id(f)]), fill=INK, font=f_num)
             ty = y0 + ih + top + 6
-            if f["ecarte"]:
+            if f["titre"]:
+                d.text((x0 + 8, ty), f["titre"], fill=INK, font=f_big)
+            elif f["ecarte"]:
                 d.text((x0 + 8, ty), f"{f['seed']}  -  ecarte", fill=DIM, font=f_big)
             else:
                 col = OK if f["note_finale"] >= 8 else KO
@@ -138,12 +151,14 @@ def main():
     r.add_argument("--juge1", type=float, default=None); r.add_argument("--juge2", type=float, default=None)
     r.add_argument("--plafond", type=float, default=0); r.add_argument("--defauts", nargs="+", default=[])
     r.add_argument("--ecarte", default="", help="motif du tri (image non jugee)")
+    r.add_argument("--titre", default="", help="essai de directions : nom de la direction (pas de juges)")
+    r.add_argument("--technique", default="", help="essai de directions : 'technique OK' ou le defaut")
     b = sub.add_parser("board")
     b.add_argument("--work", required=True); b.add_argument("--out", required=True)
     b.add_argument("--zoom", type=int, default=0, help="grossissement entier (defaut auto, ~5 pour une planche lisible)")
     b.add_argument("--cols", type=int, default=0, help="images par ligne (defaut : tout l'essai sur une ligne)")
     a = ap.parse_args()
-    if a.cmd == "record" and not a.ecarte and (a.note is None or a.juge1 is None or a.juge2 is None):
+    if a.cmd == "record" and not a.ecarte and not a.titre and (a.note is None or a.juge1 is None or a.juge2 is None):
         raise SystemExit("image jugee : --note, --juge1 et --juge2 sont obligatoires (sinon --ecarte)")
     record(a) if a.cmd == "record" else board(a)
 

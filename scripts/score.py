@@ -79,6 +79,9 @@ def judge_score(j, syn, cousins):
     return max(0.0, s), lecture, log
 
 
+TECH_CAP = 7.0  # 16/11/2026 : juges = technique seulement ; 7 -> 10 = gout de l'utilisateur
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--judge", action="append", required=True)
@@ -100,6 +103,9 @@ def main():
         if final > cap:
             print(f"plafond objectif {cap}")
         final = min(final, cap)
+    if final > TECH_CAP:
+        print(f"plafond technique {TECH_CAP} (au-dela : direction artistique, notee par l'utilisateur)")
+        final = TECH_CAP
     print(f"juges {' / '.join(str(x) for x in scores)} -> note finale {final}")
 
 

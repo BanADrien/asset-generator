@@ -98,3 +98,18 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   spirale lue coquille). Juges : 7 / 8 / 7,5 sur les 3 retenues. Defaut commun : verrues
   trop denses et regulieres, une seule narine. Codex ne respecte pas toujours la grille
   demandee (une image a 142x90 au lieu de ~84x62).
+- 2026-11-16 - l'utilisateur note les 6 crapauds Codex x6 a 7 chacun : technique acquise, mais
+  « j'aime pas le style actuel, j'aime pas la forme » et « 6 propositions quasi identiques,
+  ce qui revient a ne m'en faire aucune ». De 7 a 10 = direction artistique, pas details.
+  Regles : essai 1 = 6 directions vraiment differentes (style, forme, palette), une generation
+  par direction sans reference commune ; juges limites a la technique, plafond 7.
+- 2026-11-16 - « le mieux des 6 reste le 4e » : son prefere etait une image ECARTEE au tri
+  (patte fondue dans le flanc). Il aime le rendu doux, ton sur ton, verrues fondues, corps
+  compact. Tri assoupli : n'ecarter que mauvais animal, oeil/bouche absents, bruit.
+- 2026-11-16 - essai des 6 directions (une generation Codex par direction, ~2 min en tout,
+  3 en parallele) : 6 dessins vraiment differents. `grid_reduce` rendait transparents les
+  grands blancs d'yeux et reflets enfermes (yeux cartoon) : corrige (un blanc qui entoure une
+  pupille ou loin du bord de la silhouette reste blanc ; sorties Codex x6 inchangees).
+  Mesure `fidelite_brut` en echec sur 5/6 alors que la reduction est fidele a l'oeil : artefact
+  d'alignement sur les dessins a aplats tres contrastes, a recaler. Le totem a grosse grille
+  sort a 123x80 (Codex n'a pas tenu ~84x62).

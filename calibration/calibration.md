@@ -26,6 +26,7 @@ l'utilisateur. A completer apres chaque livraison (demander sa note, ajouter une
 | crapaud-retoucheA.png | retouche AI Horde (base orange) | **~2** (valeur approximative, il n'a pas donne de chiffre) | v3.2 : 6,5 | « les 3 sont horribles, oublie l'outil gratuit ». |
 | crapaud-retoucheB.png | retouche AI Horde (base etalon) | **~2** (approx.) | v3.2 : 5 | idem |
 | crapaud-retoucheC.png | retouche AI Horde (champion A corrige) | **~2** (approx.) | v3.2 : 6,5 | idem |
+| crapaud-codex6-1.png a crapaud-codex6-6.png | 6 natifs Codex (essai x6, crapaud realiste trapu a verrues) | **7** chacune ; PREFERE : n°4 | 7 / ecarte / 8 / ecarte / ecarte / 7,5 | Le n°4 (brun-beige) avait ete ECARTE au tri. Technique acquise ; manque la DIRECTION ARTISTIQUE (style, forme). Les 6 jugees « quasi identiques ». |
 Reference haute NON notee par l'utilisateur : `crapaud-codex-natif3.png` (natif Codex 84 x 62,
 reduit fidelement par `grid_reduce.py` depuis le brut a 7,25 ; juges 7 / 7).
 
@@ -183,3 +184,27 @@ detaille3 et essai2 en bas (avec essai1). Reste : les petits sprites marbres (es
 sont sous-notes de 2 ; la v3 est severe sur le grain a 24-30 px, que l'utilisateur tolere
 davantage a cette taille. Fuite constatee pendant la validation : l'historique de rubric.md
 donnait la note de detaille2 (le juge l'a signale) ; retire depuis.
+
+## Parole de l'utilisateur sur l'essai Codex x6 (16/11/2026)
+« les 6 sont a 7, mais les 3 points restants ne sont plus sur l'acceptable mais sur le bien ;
+j'aime pas le style actuel, j'aime pas la forme ; tu m'as fait 6 propositions quasi identiques,
+ce qui revient a ne m'en faire aucune ».
+
+Lecture (interpretation de Claude) :
+- La TECHNIQUE est acquise : net, propre, lisible = 7. Les juges avaient mis 8 / 7,5 / 7 et
+  ecarte trois images qu'il note 7 aussi : ils ne savent pas voir ce qui manque.
+- De 7 a 10, c'est de la DIRECTION ARTISTIQUE : le style de dessin et la forme (le design) du
+  personnage. Le crapaud realiste, trapu et couvert de verrues ne lui plait pas ; aucune
+  correction de detail (narine, verrues) ne fera monter la note.
+- 6 variantes d'une meme idee = 0 proposition. Il avait deja dit preferer le DESIGN du crapaud
+  debout pale (formes simples, personnage), malgre sa note technique plus basse.
+- Consequence : les juges ne notent plus que la technique, plafonnee a 7 ; au-dela, c'est lui.
+
+Precision : « le mieux des 6 reste le 4e » (`crapaud-codex6-4.png`, brun-beige, que le tri
+avait ecarte pour « patte arriere confondue avec le flanc, bouche discrete »).
+Lecture (interpretation de Claude) : le n°4 se distingue par une teinte chaude ton sur ton
+(brun-beige, faible contraste interne), des verrues discretes fondues dans la couleur au lieu
+de « pois » clairs tres marques, et un corps compact et ramasse. Il prefere un rendu DOUX et
+HARMONIEUX a un rendu tres detaille et contraste. La « patte fondue dans le flanc » ne le gene
+pas : le tri etait trop severe. Encore un cas ou les juges (n°3 a 8) et lui (n°4, ecarte)
+divergent : les juges trient la technique, il choisit.

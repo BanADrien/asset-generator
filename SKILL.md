@@ -29,18 +29,25 @@ modele. L'apprentissage, c'est `learnings.md` et `calibration/`.
 
 ## Boucle (4 essais max, 6 images par essai, arret a 8/10)
 1. **Generer + reduire + mesurer + planches** :
-   - essai 1 : `& $py -I scripts/forge_try.py --work W --essai 1 --prompt-file NEUF.txt --ref style/etalon-style.png --ref SPRITE_ACTUEL.png`
-     (6 nouvelles propositions) ;
-   - des l'essai 2 : ajouter `--champion <meilleure image brute> --fix-prompt-file CORRIGE.txt`
+   - essai 1 d'un nouveau sujet : **6 DIRECTIONS ARTISTIQUES reellement differentes**, nommees,
+     qui varient a la fois le style de dessin, la forme et les proportions, et la palette (jamais
+     6 variantes proches : « 6 propositions quasi identiques, ce qui revient a ne m'en faire
+     aucune »). Une generation Codex SEPAREE par direction (un prompt par image, `generate.py
+     --n 1`), sans reference commune ; une image de reference n'est jointe qu'a la direction qui
+     s'en reclame. Puis `forge_try.py --reuse` sur les 6 bruts pour reduire et mesurer ;
+   - essais suivants : ils creusent la ou les directions choisies par l'utilisateur ; ajouter `--champion <meilleure image brute> --fix-prompt-file CORRIGE.txt`
      -> **3 images partent du champion avec UN defaut a corriger, 3 sont nouvelles**.
    Chaque sprite natif a ses mesures (`measure.py --profile natif --raw` : proprete, frange
    blanche, fidelite au brut) et sa planche ; `--reuse` pour reduire a nouveau sans generer.
 2. **Tri des 6** : lecteur aveugle (sous-agent qui recoit seulement l'image agrandie :
    « qu'est-ce que c'est ? 2e hypothese ? parties identifiees ? ») + mesures objectives.
-   Ecarter : sujet mal lu, oeil ou bouche absents de sa liste, plafond objectif. Garder les
+   N'ecarter que les VRAIS defauts : mauvais animal, oeil ou bouche absents, bruit (plafond
+   objectif). Jamais pour une partie peu separee ou un detail discret (l'utilisateur a prefere
+   une image ecartee pour « patte fondue dans le flanc »). Garder les
    **3 meilleures** ; noter le motif du tri des 3 autres (`history.py record --ecarte "..."`).
    Regarder les sprites a grossissement ENTIER.
-3. **Juges** sur les 3 retenues : 2 sous-agents par image avec `references/judge-prompt.md`
+3. **Juges (technique seulement, plafond 7)** sur les 3 retenues — pas de juges sur un essai
+   de directions (choix de l'utilisateur : indiquer « technique OK » ou le defaut) : 2 sous-agents par image avec `references/judge-prompt.md`
    (grille v3.2, ancres = images de `calibration/`, dont le Codex brut 7,25 et le natif Codex
    essai 3 en haut). Enregistrer leurs JSON puis
    `& $py -I scripts/score.py --judge juge1.json --judge juge2.json --measure X.measure.json`.
