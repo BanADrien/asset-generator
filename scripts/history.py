@@ -8,7 +8,8 @@
    -> W/essai-2/fiche-<seed>.json et .md (le sprite reste W/essai-2/<seed>.png).
 2) A la livraison :
    python -I history.py board --work W --out W/historique.png
-   -> une ligne par essai, les images dans l'ordre ; sous chacune : note finale et notes des
+   [--zoom 5 --cols 3] (planche a montrer a l'utilisateur : grande, numerotee 1-6)
+   -> une ligne par essai, les images numerotees dans l'ordre ; sous chacune : note finale et notes des
       deux juges (ou « ecarte : motif »), plafond objectif s'il s'applique, 2-3 defauts.
 Compatible avec les anciennes fiches (fiche.json, une image par essai).
 """
@@ -69,11 +70,16 @@ def board(a):
     essais = sorted({f["essai"] for f in fiches})
     rows = [sorted([f for f in fiches if f["essai"] == e], key=lambda x: x["seed"]) for e in essais]
     sprites = {id(f): Image.open(f["sprite"]).convert("RGBA") for f in fiches}
-    zoom = max(2, min(8, 180 // max(max(s.size) for s in sprites.values())))
+    zoom = a.zoom or max(2, min(8, 180 // max(max(s.size) for s in sprites.values())))
     cw = max(210, max(s.width for s in sprites.values()) * zoom + 20)
     ih = max(s.height for s in sprites.values()) * zoom
-    f_big, f_txt = font(18), font(13)
-    wrap = max(18, cw // 8)
+    big_ui = zoom >= 4
+    f_num, f_big, f_txt = font(40 if big_ui else 22), font(24 if big_ui else 18), font(18 if big_ui else 13)
+    lh = 23 if big_ui else 17
+    top = 54 if big_ui else 10  # place du numero au-dessus du sprite
+    wrap = max(18, cw // (10 if big_ui else 8))
+    if a.cols:  # coupe chaque essai en lignes de a.cols images
+        rows = [r[i:i + a.cols] for r in rows for i in range(0, len(r), a.cols)]
 
     def text(f):
         if f["ecarte"]:
@@ -84,11 +90,16 @@ def board(a):
         for dft in f["defauts"][:3]:
             t += textwrap.wrap("- " + dft, wrap)
         return t
-    th = 30 + 17 * max(len(text(f)) for f in fiches)
-    ch = ih + 20 + th
+    th = 34 + lh * max(len(text(f)) for f in fiches)
+    ch = ih + top + 10 + th
     ncol = max(len(r) for r in rows)
     W = 16 + ncol * (cw + 12)
     H = 40 + len(rows) * (ch + 34)
+    rows_num, k = {}, {}
+    for r in rows:
+        for f in r:
+            k[f["essai"]] = k.get(f["essai"], 0) + 1
+            rows_num[id(f)] = k[f["essai"]]
     out = Image.new("RGBA", (W, H), BG)
     d = ImageDraw.Draw(out)
     d.text((16, 12), "Historique (une ligne par essai) - note finale = plus basse des 2 juges, plafonnee par les mesures ;"
@@ -102,8 +113,9 @@ def board(a):
             d.rectangle([x0, y0, x0 + cw, y0 + ch], fill=CARD, outline=OK if f is best else CARD, width=3)
             s = sprites[id(f)]
             big = s.resize((s.width * zoom, s.height * zoom), Image.NEAREST)
-            out.alpha_composite(big, (x0 + (cw - big.width) // 2, y0 + 10 + ih - big.height))
-            ty = y0 + ih + 16
+            out.alpha_composite(big, (x0 + (cw - big.width) // 2, y0 + top + ih - big.height))
+            d.text((x0 + 10, y0 + 6), str(rows_num[id(f)]), fill=INK, font=f_num)
+            ty = y0 + ih + top + 6
             if f["ecarte"]:
                 d.text((x0 + 8, ty), f"{f['seed']}  -  ecarte", fill=DIM, font=f_big)
             else:
@@ -111,7 +123,7 @@ def board(a):
                 d.text((x0 + 8, ty), f"{f['seed']}  -  {f['note_finale']}/10" + ("  (retenu)" if f is best else ""),
                        fill=col, font=f_big)
             for j, line in enumerate(text(f)):
-                d.text((x0 + 8, ty + 26 + 17 * j), line, fill=INK, font=f_txt)
+                d.text((x0 + 8, ty + (32 if big_ui else 26) + lh * j), line, fill=INK, font=f_txt)
         y += ch + 34
     out.save(a.out)
     print(a.out)
@@ -128,6 +140,8 @@ def main():
     r.add_argument("--ecarte", default="", help="motif du tri (image non jugee)")
     b = sub.add_parser("board")
     b.add_argument("--work", required=True); b.add_argument("--out", required=True)
+    b.add_argument("--zoom", type=int, default=0, help="grossissement entier (defaut auto, ~5 pour une planche lisible)")
+    b.add_argument("--cols", type=int, default=0, help="images par ligne (defaut : tout l'essai sur une ligne)")
     a = ap.parse_args()
     if a.cmd == "record" and not a.ecarte and (a.note is None or a.juge1 is None or a.juge2 is None):
         raise SystemExit("image jugee : --note, --juge1 et --juge2 sont obligatoires (sinon --ecarte)")

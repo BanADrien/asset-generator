@@ -45,8 +45,12 @@ modele. L'apprentissage, c'est `learnings.md` et `calibration/`.
    essai 3 en haut). Enregistrer leurs JSON puis
    `& $py -I scripts/score.py --judge juge1.json --judge juge2.json --measure X.measure.json`.
    Enregistrer chaque image : `history.py record --work W --essai n --seed X --note N --juge1 a --juge2 b --defauts "..."`.
-4. Si note >= 8 : livrer. Sinon : champion = meilleure image brute ; UN defaut principal
-   (table de `prompting.md`) ; lecon dans `learnings.md` ; essai suivant.
+4. **Validation par l'utilisateur** : apres chaque essai, montrer la planche des 6 et demander
+   ses notes ; le seuil de 8/10 est valide par l'utilisateur, les juges servent au tri et aux
+   defauts. Attendre ses notes avant l'essai suivant.
+5. Si l'utilisateur donne >= 8 : livrer. Sinon : champion = son image preferee (a defaut la
+   mieux notee par les juges) ; UN defaut principal (table de `prompting.md`) ; lecon dans
+   `learnings.md` ; essai suivant.
 
 Ne pas gonfler la note : ne jamais rejuger une image pour obtenir mieux, ne pas retoucher
 mesures ou grille pendant une boucle.
@@ -54,8 +58,9 @@ mesures ou grille pendant une boucle.
 ## Livraison
 1. `notes.md` : sujet, note finale et detail des 2 juges, mesures, essais, prompt et image
    retenue, defauts restants dits franchement, integration (echelle 1, `pixelArt: true`).
-2. Planche historique : `& $py -I scripts/history.py board --work W --out W/historique.png`
-   (une ligne par essai, les 6 images, note ou motif du tri sous chacune).
+2. Planche historique : `& $py -I scripts/history.py board --work W --out W/historique.png --zoom 5 --cols 3`
+   (grande, images numerotees 1-6, note ou motif du tri sous chacune ; c'est elle qu'on
+   montre a l'utilisateur pour recueillir ses notes).
 3. `& $py -I scripts/deliver.py --name <sujet> --sprite ... --history W/historique.png --notes ...`
    -> `Telechargements` : sprite PNG natif transparent, planche historique, notes (suffixe -2,
    -3..., jamais d'ecrasement ; pas de planche comparative sauf demande).

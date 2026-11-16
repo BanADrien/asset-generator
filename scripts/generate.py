@@ -39,7 +39,7 @@ def main():
     ap.add_argument("--prompt-file", required=True)
     ap.add_argument("--ref", action="append", default=[])
     ap.add_argument("--n", type=int, default=6, help="images demandees (quota : 6 par essai)")
-    ap.add_argument("--timeout", type=int, default=1500)
+    ap.add_argument("--timeout", type=int, default=3600)
     a = ap.parse_args()
 
     os.makedirs(a.out, exist_ok=True)

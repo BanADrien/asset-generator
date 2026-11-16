@@ -93,3 +93,8 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
 - 2026-11-16 - juges v4 (lecteur aveugle + placement par comparaison) testes et NON adoptes :
   ecart moyen 1,66 sur 19 images ; le lecteur aveugle dit « crapaud » a tout (meme brique,
   tortue). Il reste utile pour verifier oeil et bouche au tri.
+- 2026-11-16 - premier vrai essai Codex x6 (crapaud) : 6 images en ~4 min, toutes propres
+  aux mesures et lues « crapaud » ; tri sur les defauts du lecteur (patte arriere fondue,
+  spirale lue coquille). Juges : 7 / 8 / 7,5 sur les 3 retenues. Defaut commun : verrues
+  trop denses et regulieres, une seule narine. Codex ne respecte pas toujours la grille
+  demandee (une image a 142x90 au lieu de ~84x62).
