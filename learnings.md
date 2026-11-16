@@ -104,8 +104,8 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   Regles : essai 1 = 6 directions vraiment differentes (style, forme, palette), une generation
   par direction sans reference commune ; juges limites a la technique, plafond 7.
 - 2026-11-16 - « le mieux des 6 reste le 4e » : son prefere etait une image ECARTEE au tri
-  (patte fondue dans le flanc). Ce qui le distinguait (a confirmer) : teinte chaude ton sur
-  ton, verrues discretes. Ne rien deduire d'un trait commun a toutes les propositions (la
+  (patte fondue dans le flanc). Ce qui le distinguait (a confirmer) : verrues discretes
+  (« ton sur ton » refute ensuite : 4/10). Ne rien deduire d'un trait commun a toutes les propositions (la
   forme trapue). Tri assoupli : n'ecarter que mauvais animal, oeil/bouche absents, bruit.
 - 2026-11-16 - essai des 6 directions (une generation Codex par direction, ~2 min en tout,
   3 en parallele) : 6 dessins vraiment differents. `grid_reduce` rendait transparents les
@@ -123,3 +123,11 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   l'image de reference jointe, « Anguleux pose » l'a presque recopiee (orange compris) : une
   reference de style tire vers la copie, preciser ce qui doit changer. Petits trous blancs
   (< 9 cases) entre les pattes gardes blancs par la reduction (crapaud doux) : a traiter.
+- 2026-11-16 - notes essai 3 : elance assis 7, anguleux modele 6, naturalistes peints 4-5,
+  bestiaire « too much », poses dynamiques 3-4. Reglage central = CURSEUR DE REALISME, zone au
+  milieu (plans nets, 12-16 couleurs, contour franc, petite taille ~64-80 px de large).
+- 2026-11-16 - essai 4 « anguleux realiste » (4 images, ~1 min, 4 en parallele) : la consigne
+  « only about 64 big pixels wide, each pixel a big visible square » donne 57-100 px ; 2 sprites
+  a 100 px regeneres avec « AT MOST 64 x 50, ~16 image px par pixel » -> 88 et 70 px. Petits
+  trous blancs (< 9 cases) entre les pattes : non corriges, toute regle simple (bord proche +
+  contour sombre, taille 4-8 cases) effacait aussi les reflets d'une peau sombre luisante.

@@ -211,7 +211,7 @@ def main():
             if 0 <= ni < gw and 0 <= nj < gh and dist[nj][ni] > dist[j][i] + 1:
                 dist[nj][ni] = dist[j][i] + 1
                 q.append((ni, nj))
-    def dark_rim(comp):
+    def dark_rim(comp, limit=90):
         # reflet dans une pupille : la zone blanche est bordee de cases sombres (un trou de fond
         # entre deux pattes est borde par la couleur du corps)
         cs = set(comp); rim = []
@@ -220,7 +220,7 @@ def main():
                 n = (i + di, j + dj)
                 if n not in cs and 0 <= n[0] < gw and 0 <= n[1] < gh:
                     rim.append(sum(cells[n[1]][n[0]]) / 3)
-        return bool(rim) and sum(rim) / len(rim) < 90
+        return bool(rim) and sum(rim) / len(rim) < limit
     def encloses(comp):
         # blanc d'oeil : la zone blanche entoure une pupille (cases non blanches enfermees dedans) -> on la garde
         cs = set(comp)
@@ -249,7 +249,10 @@ def main():
                     if 0 <= ni < gw and 0 <= nj < gh and not seen[nj][ni] and not bg[nj][ni] and white(cells[nj][ni]):
                         seen[nj][ni] = True
                         st.append((ni, nj))
-            if len(comp) >= 9 and not encloses(comp) and not (min(dist[j][i] for i, j in comp) > 4 and dark_rim(comp)):
+            near = min(dist[j][i] for i, j in comp)
+            # NB : les petits trous blancs (< 9 cases) restent blancs ; aucune regle simple ne les
+            # distingue des reflets de peau luisante (essai 16/11/2026, voir learnings.md)
+            if len(comp) >= 9 and not encloses(comp) and not (near > 4 and dark_rim(comp)):
                 for i, j in comp:
                     bg[j][i] = True
     fg = [cells[j][i] for j in range(gh) for i in range(gw) if not bg[j][i]]

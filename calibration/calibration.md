@@ -214,8 +214,8 @@ Lecture (interpretation de Claude) :
 Precision : « le mieux des 6 reste le 4e » (`crapaud-codex6-4.png`, brun-beige, que le tri
 avait ecarte pour « patte arriere confondue avec le flanc, bouche discrete »).
 Lecture (interpretation de Claude, A CONFIRMER) : ce qui distinguait vraiment le n°4 des cinq
-autres : une teinte chaude ton sur ton (brun-beige, faible contraste interne) et des verrues
-discretes fondues dans la couleur au lieu de « pois » clairs tres marques. Rien a deduire sur
+autres : des verrues discretes fondues dans la couleur au lieu de « pois » clairs tres marques.
+(La « teinte chaude ton sur ton » a ete REFUTEE par l'essai 3 : « Doux ton sur ton » = 4.) Rien a deduire sur
 la forme : les 6 etaient trapues (correction de l'utilisateur : « je prefere pas un corps
 ramasse, vu que j'ai pas eu de choix contraire »). La « patte fondue dans le flanc » ne le gene
 pas : le tri etait trop severe. Encore un cas ou les juges (n°3 a 8) et lui (n°4, ecarte)
@@ -243,3 +243,26 @@ s'opposaient vraiment) :
 Ajout de l'utilisateur sur la direction n°2 « Anguleux stylise » (notee 5) : « j'aime bien
 anguleux, rajoute plus de tests avec cette vision (pas trop non plus) ». -> 3 essais anguleux
 (plus modele, pose, en action) ajoutes a l'essai des formes naturalistes.
+
+## Notes de l'essai des formes (essai 3, 16/11/2026)
+1 Elance assis 7 ; 2 Massif a grande gueule 5 ; 3 Feuille morte 4 ; 4 Pret a bondir 4 ; 5 Doux
+ton sur ton 4 ; 6 Bestiaire contraste 5 ; 7 Anguleux plus modele 6 ; 8 Anguleux pose 3 ;
+9 Anguleux en action 3.
+Ses mots : « essaye de faire un anguleux plus realiste, mais la le niveau de realisme global est
+trop eleve pour un jeu 2D pixel art, et le 6 j'en parle pas, c'est too much ».
+
+Lecture (interpretation de Claude ; options contrastees, lectures valides ; hypotheses marquees) :
+- CURSEUR DE REALISME, zone au milieu : trop stylise (totem 1, mascotte et cartoon 3) et trop
+  realiste/peint (naturalistes 4-5, bestiaire « too much ») sont penalises. Cible : entre
+  l'anguleux modele (n°7 = 6) et le pixel art propre realiste (essai Codex x6 = 7, elance assis
+  = 7) : anatomie vraie, couleurs naturelles, formes simplifiees en plans nets, peu de
+  couleurs, contour sombre franc, pas de rendu peint ni de texture grenue.
+- Forme (HYPOTHESE a confirmer) : l'elance assis droit (7) bat tous les trapus de cet essai
+  (4-5) : premiere vraie indication, il prefererait une silhouette fine et relevee.
+- REFUTE : « doux ton sur ton » (n°5 = 4) n'est pas ce qui lui plaisait dans son ancien n°4 ;
+  l'hypothese « teinte chaude ton sur ton » est retiree.
+- REFUTE : la pose dynamique langue sortie n'apporte rien (n°4 = 4, n°9 = 3) : plus par defaut.
+- L'orange sature reste penalise (n°8 = 3). Une quasi-copie d'une image deja vue est notee plus
+  bas que l'originale : ne jamais resservir la meme.
+- Plus le sprite est grand, plus Codex y met de detail, plus ca fait « trop realiste » : la
+  petite taille fait partie du style voulu, pas seulement une contrainte d'integration.

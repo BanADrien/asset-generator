@@ -24,6 +24,22 @@
   propositions** (`forge_try.py --champion ... --fix-prompt-file ...`).
 - AI Horde et Pollinations ont ete abandonnes le 16/11/2026 (voir learnings.md).
 
+## CURSEUR DE REALISME (reglage central, 16/11/2026)
+Sa zone est AU MILIEU. Trop stylise (totem 1, mascotte et cartoon 3) et trop realiste ou peint
+(illustration naturaliste 4-5, bestiaire « too much ») sont tous deux penalises.
+Zone cible : entre l'anguleux modele (6) et le pixel art propre realiste (7) : anatomie vraie
+et couleurs naturelles, MAIS formes simplifiees en plans nets (2-3 valeurs par plan), peu de
+couleurs (12-16), contour sombre franc, pas de rendu peint ni de texture grenue.
+La PETITE TAILLE fait partie du style : plus le sprite est grand, plus Codex y met de detail
+et plus ca fait « trop realiste ». Viser ~64-80 px de large pour un crapaud.
+Chaque prompt doit placer l'image sur ce curseur (et ne pas resservir une image deja vue).
+
+Formule de prompt qui marche pour la zone cible : « real toad anatomy and natural colors, but
+SIMPLIFIED into clean cut planes with 2-3 values per plane, bold continuous dark outline, only
+12 to 16 colors, no painterly rendering, no grainy texture » + « the toad is only about 64 big
+pixels wide, each pixel a big clearly visible square ». Pas de langue sortie ni de pose
+dynamique par defaut (refute : notes 3-4).
+
 ## Modele de prompt « nouvelles propositions » (anglais ; {N} remplace par le script)
 ```
 Your ONLY task: use your built-in image generation tool to create {N} images, and save each one

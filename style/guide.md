@@ -19,6 +19,16 @@ notation qui ramenent chaque image vers le style du jeu. Planche : `planche-exem
 - Moteur : Phaser 3, canvas 960x540, vue de profil (plateformer), sprites tournes vers la
   droite (le jeu retourne l'image pour la gauche).
 
+## CURSEUR DE REALISME (reglage central, 16/11/2026)
+Sa zone est AU MILIEU. Trop stylise (totem 1, mascotte et cartoon 3) et trop realiste ou peint
+(illustration naturaliste 4-5, bestiaire « too much ») sont tous deux penalises.
+Zone cible : entre l'anguleux modele (6) et le pixel art propre realiste (7) : anatomie vraie
+et couleurs naturelles, MAIS formes simplifiees en plans nets (2-3 valeurs par plan), peu de
+couleurs (12-16), contour sombre franc, pas de rendu peint ni de texture grenue.
+La PETITE TAILLE fait partie du style : plus le sprite est grand, plus Codex y met de detail
+et plus ca fait « trop realiste ». Viser ~64-80 px de large pour un crapaud.
+Chaque prompt doit placer l'image sur ce curseur (et ne pas resservir une image deja vue).
+
 ## REFERENCE DE STYLE (etalon) - `etalon-style.png` (+ `etalon-style-x8.png`)
 Parole de l'utilisateur : « je prefere quand meme le design de la version debout dans le
 style ». Cette image (crapaud debout du profil detaille, note 6,5) est le STYLE voulu pour
