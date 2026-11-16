@@ -29,6 +29,13 @@ La PETITE TAILLE fait partie du style : plus le sprite est grand, plus Codex y m
 et plus ca fait « trop realiste ». Viser ~64-80 px de large pour un crapaud.
 Chaque prompt doit placer l'image sur ce curseur (et ne pas resservir une image deja vue).
 
+## CRITERE « ERGONOMIQUE » (parole de l'utilisateur, 16/11/2026)
+« ergonomique c'est une forme globale plus propre et definie, avec un style propre » :
+FORME GLOBALE PROPRE ET DEFINIE + DESIGN COHERENT d'un bout a l'autre du personnage. C'est le
+critere n°1 au-dela de la technique. Image cible : `references/cible/crapaud-cible-n7.png`
+(defauts cites : bouche ouverte, pas assez realiste). Quand un design plait, le CONSERVER
+(silhouette, pose, proportions, taille de grille) et ne retoucher que les defauts cites.
+
 ## REFERENCE DE STYLE (etalon) - `etalon-style.png` (+ `etalon-style-x8.png`)
 Parole de l'utilisateur : « je prefere quand meme le design de la version debout dans le
 style ». Cette image (crapaud debout du profil detaille, note 6,5) est le STYLE voulu pour

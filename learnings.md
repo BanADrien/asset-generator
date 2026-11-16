@@ -138,3 +138,6 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   a 100 px regeneres avec « AT MOST 64 x 50, ~16 image px par pixel » -> 88 et 70 px. Petits
   trous blancs (< 9 cases) entre les pattes : non corriges, toute regle simple (bord proche +
   contour sombre, taille 4-8 cases) effacait aussi les reflets d'une peau sombre luisante.
+- 2026-11-16 - essai 5 : 3 retouches du n°7 (image jointe agrandie x10 « this is an EDIT, keep
+  strictly identical ... change ONLY ») : silhouette, pose et palette conservees sur les 3, en
+  ~1 min. La retouche garde le design la ou un nouveau dessin le perd (essai 4).

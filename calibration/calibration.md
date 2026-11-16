@@ -285,3 +285,16 @@ Lecture (interpretation de Claude) :
   le trois-quarts face (n°4) et le bloc massif (n°1) ne le sont pas.
 - d) A petite taille, les plans tailles deviennent des marches d'escalier grossieres :
   l'anguleux supporte mal les 60 a 90 px.
+
+## Critere « ergonomique » (parole de l'utilisateur, 16/11/2026)
+Sur le n°7 de l'essai 3 (« Anguleux plus modele », 6/10) : « pour moi ergonomique c'est une
+forme globale plus propre et definie, avec un style propre ; ce que j'aime bien dans celui-la,
+malgre le fait que sa bouche soit ouverte et qu'il soit pas assez realiste, c'est que sa forme
+globale est propre et son design est coherent ».
+- Critere n°1 au-dela de la technique : FORME GLOBALE PROPRE ET DEFINIE + DESIGN COHERENT (un
+  style qui se tient d'un bout a l'autre du personnage). Dans le skill, « ergonomique » = ca.
+- Le n°7 de l'essai 3 devient l'image CIBLE (`references/cible/crapaud-cible-n7.png`). Ses deux
+  defauts selon lui : bouche ouverte, pas assez realiste.
+- Interpretation de Claude : l'essai 4 a echoue parce qu'il REDESSINAIT le crapaud (nouvelles
+  proportions, nouvelle pose, taille reduite) et a perdu la silhouette et la coherence du n°7.
+  Lecon : quand un design plait, on le conserve et on ne retouche que les defauts cites.
