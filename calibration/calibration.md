@@ -3,6 +3,11 @@
 Les juges ouvrent ces images (version `-x8`) comme ancres : ce sont des notes REELLES de
 l'utilisateur. A completer apres chaque livraison (demander sa note, ajouter une ligne).
 
+## Regle de methode pour les interpretations (a appliquer avant toute lecture de ses choix)
+Ne deduire une preference que d'un choix entre des options qui s'opposent sur ce point. Si
+toutes les propositions partageaient un trait (ici la forme trapue), son choix ne dit rien sur
+ce trait.
+
 ## Notes (10 images : 9 essais + le crapaud dessine en code)
 | Image | Profil | Note utilisateur | Juges a l'epoque | Lecon |
 |---|---|---|---|---|
@@ -202,9 +207,10 @@ Lecture (interpretation de Claude) :
 
 Precision : « le mieux des 6 reste le 4e » (`crapaud-codex6-4.png`, brun-beige, que le tri
 avait ecarte pour « patte arriere confondue avec le flanc, bouche discrete »).
-Lecture (interpretation de Claude) : le n°4 se distingue par une teinte chaude ton sur ton
-(brun-beige, faible contraste interne), des verrues discretes fondues dans la couleur au lieu
-de « pois » clairs tres marques, et un corps compact et ramasse. Il prefere un rendu DOUX et
-HARMONIEUX a un rendu tres detaille et contraste. La « patte fondue dans le flanc » ne le gene
+Lecture (interpretation de Claude, A CONFIRMER) : ce qui distinguait vraiment le n°4 des cinq
+autres : une teinte chaude ton sur ton (brun-beige, faible contraste interne) et des verrues
+discretes fondues dans la couleur au lieu de « pois » clairs tres marques. Rien a deduire sur
+la forme : les 6 etaient trapues (correction de l'utilisateur : « je prefere pas un corps
+ramasse, vu que j'ai pas eu de choix contraire »). La « patte fondue dans le flanc » ne le gene
 pas : le tri etait trop severe. Encore un cas ou les juges (n°3 a 8) et lui (n°4, ecarte)
 divergent : les juges trient la technique, il choisit.

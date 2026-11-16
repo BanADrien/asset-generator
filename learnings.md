@@ -104,8 +104,9 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   Regles : essai 1 = 6 directions vraiment differentes (style, forme, palette), une generation
   par direction sans reference commune ; juges limites a la technique, plafond 7.
 - 2026-11-16 - « le mieux des 6 reste le 4e » : son prefere etait une image ECARTEE au tri
-  (patte fondue dans le flanc). Il aime le rendu doux, ton sur ton, verrues fondues, corps
-  compact. Tri assoupli : n'ecarter que mauvais animal, oeil/bouche absents, bruit.
+  (patte fondue dans le flanc). Ce qui le distinguait (a confirmer) : teinte chaude ton sur
+  ton, verrues discretes. Ne rien deduire d'un trait commun a toutes les propositions (la
+  forme trapue). Tri assoupli : n'ecarter que mauvais animal, oeil/bouche absents, bruit.
 - 2026-11-16 - essai des 6 directions (une generation Codex par direction, ~2 min en tout,
   3 en parallele) : 6 dessins vraiment differents. `grid_reduce` rendait transparents les
   grands blancs d'yeux et reflets enfermes (yeux cartoon) : corrige (un blanc qui entoure une
