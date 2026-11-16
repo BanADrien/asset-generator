@@ -1,0 +1,57 @@
+# Guide de style - Legend of Agarica
+
+Base « apprise » par analyse des assets du depot `BanADrien/agarica` (16/11/2026) : mesures
+(tailles, couleurs, transparence, echelles du code) + lecture des images. Ce n'est PAS un
+entrainement de modele : le generateur ne connait pas le jeu ; c'est ce guide, la palette et la
+notation qui ramenent chaque image vers le style du jeu. Planche : `planche-exemples.png`.
+
+## Constat sur les assets actuels
+- Tuiles de sol `decors/tuiles.png` : seul vrai pixel art du jeu, dessine a la main. Cases de
+  24 px, affichees en 64 px (GROUND_TILE_SIZE) -> **1 px art = 64/24 = 2,67 px ecran**.
+  Pierres brun-rouge sombre (542715, 3c1b0f, 2e150b), joints presque noirs, herbe en 4 verts
+  (173104 -> 48871d), 0 pixel semi-transparent.
+- Sprites (personnages, animaux) : images IA peintes en haute definition (200 a 700 px par
+  frame), 10 000 a 70 000 couleurs, 20 a 60 % de pixels semi-transparents, reduites a l'ecran
+  par `setScale` (0,24 a 0,4). Faux pixel art : flous a 1x, densite de pixels differente des
+  tuiles. C'est ce que le skill doit depasser.
+- Direction artistique (CLAUDE.md / GDD du jeu) : silhouettes sombres facon Hollow Knight,
+  violet nuit / vert lunaire / touches de rose, silhouette + contour lumineux, fonds degrades.
+- Moteur : Phaser 3, canvas 960x540, vue de profil (plateformer), sprites tournes vers la
+  droite (le jeu retourne l'image pour la gauche).
+
+## Tailles cibles (px art = taille ecran actuelle / 2,67)
+| Sujet | Taille ecran actuelle | Cible pixel art (l x h) |
+|---|---|---|
+| Agarica (humaine) | 45 x 84 | ~17 x 31 |
+| Crapaud (corps, langue rentree) | 71 x 56 | ~28-32 x 21-24 |
+| Aigle / oiseau (ailes ouvertes) | 78 x 92 | ~29 x 34 |
+| Loup | 107 x 68 | ~40 x 26 |
+| Ours | 178 x 104 | ~64 x 39 |
+| Singe (roule en boule) | ~43 x 46 (echelle a confirmer) | ~16 x 17 |
+| Chat, ours-hibou, autres | regle : meme densite, taille relative a Agarica (31 px) |
+Dans le jeu : afficher le PNG avec `pixelArt: true` et une echelle 64/24 (ou 3 si on veut
+un entier). Ne jamais lisser.
+
+## Regles de style
+1. **Densite unique** : un pixel du sprite = un pixel des tuiles. Pas de sprite « HD » a cote.
+2. **Profil strict**, oriente a droite, pose lisible (pattes, oeil, bouche visibles).
+3. **Contour 1 px ferme**, selectif : teinte tres sombre de la matiere (brun-noir, vert-noir,
+   violet-noir), noir pur seulement au plus profond. Pas de contour double, pas de trou.
+4. **Lumiere** venant du haut-gauche (lune). 3 a 4 valeurs par matiere : ombre, base, clair,
+   eclat. Ombres decalees vers le violet/brun (5e5371, 432b59, 30273d), eclats vers le chaud
+   (f5b87f, f8d2a1). Pas de « pillow shading » (bord sombre + centre clair sans direction).
+5. **Palette** : uniquement `palette.hex` (45 couleurs : 30 extraites du jeu, verts de l herbe, vert lunaire, rose, rampe olive et jaune d oeil ajoutes pendant le test du crapaud). Un sprite utilise 6 a 20 couleurs.
+6. **Silhouette d'abord** : reconnaissable en aplat noir a 1x ; formes trapues et franches,
+   details (oeil, verrues, griffes) en groupes de 2 px et plus, pas de poussiere de pixels.
+7. **Contraste** : le sujet doit se detacher du fond violet nuit (1e1726) ; garder un clair
+   franc (yeux, ventre, eclat) et un sombre franc (contour).
+8. **Personnalite** : un detail signature par animal (oeil jaune du crapaud, plumes violettes
+   de l'aigle, yeux verts lunaires des formes d'Agarica).
+
+## Animaux du jeu (double saut de chaque forme)
+- Oiseau/aigle : plane (ailes ouvertes, plumes violet nuit, nervures vertes).
+- Singe : liane (brun roux, visage clair, yeux verts).
+- Crapaud : grappin-langue (corps trapu brun-olive ou vert mousse, ventre creme, oeil jaune,
+  langue rose 8-12 px quand elle sort).
+- Ours-hibou : ecrasement (masse sombre, bec, plumes sur la tete).
+- Chat : wall jump (silhouette fine, queue haute).

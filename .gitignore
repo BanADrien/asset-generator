@@ -1,0 +1,30 @@
+# Reglages locaux (chemin de pixel-fixer...)
+config.local.json
+
+# Sorties generees, essais, livrables
+work/
+runs/
+essai-*/
+raw/
+outputs/
+*.hd.png
+*.board.png
+*.x8.png
+*.measure.json
+historique*.png
+
+# Gros packs d'images (seules les planches legeres de references/ et style/ sont versionnees)
+*.zip
+packs/
+downloads/
+
+# Temporaires et caches
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+*.tmp
+*.log
+.DS_Store
+Thumbs.db

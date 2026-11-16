@@ -1,0 +1,54 @@
+{
+ "crapaud_actuel.png": {
+  "source": "sprites/crapaud_frames/crapaud_row0_0.png",
+  "echelle_jeu": 0.26,
+  "taille_ecran": [
+   71,
+   56
+  ]
+ },
+ "agarica_actuel.png": {
+  "source": "sprites/agarica_frames/agarica_row0_0.png",
+  "echelle_jeu": 0.24,
+  "taille_ecran": [
+   45,
+   84
+  ]
+ },
+ "aigle_actuel.png": {
+  "source": "sprites/piaf_frames/piaf_row0_0.png",
+  "echelle_jeu": 0.28,
+  "taille_ecran": [
+   78,
+   92
+  ]
+ },
+ "loup_actuel.png": {
+  "source": "sprites/loup_frames/loup_row0_0.png",
+  "echelle_jeu": 0.4,
+  "taille_ecran": [
+   107,
+   68
+  ]
+ },
+ "ours_actuel.png": {
+  "source": "sprites/ours_frames/ours_row0_0.png",
+  "echelle_jeu": 0.34,
+  "taille_ecran": [
+   178,
+   104
+  ]
+ },
+ "singe_actuel.png": {
+  "source": "sprites/singe_frames/singe_row0_0.png",
+  "echelle_jeu": 0.3,
+  "taille_ecran": [
+   43,
+   46
+  ]
+ },
+ "tuiles_main.png": {
+  "source": "decors/tuiles.png",
+  "case": 24
+ }
+}
