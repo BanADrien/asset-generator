@@ -47,6 +47,9 @@ def main():
     ap.add_argument("--max-colors", type=int, default=0)
     ap.add_argument("--bg-tol", type=int, default=40)
     ap.add_argument("--lora", default="", help="LoRA AI Horde, ex. 120096:0.8 (Pixel Art XL)")
+    ap.add_argument("--source", default="", help="image de base a retoucher (img2img) : methode par defaut des qu'on a un champion")
+    ap.add_argument("--denoise", type=float, default=0.45, help="force de retouche (0,3 garde la base, 0,6 la change)")
+    ap.add_argument("--control", default="", help="ControlNet (SD 1.5 seulement)")
     ap.add_argument("--reuse", default="")
     ap.add_argument("--label", default="")
     a = ap.parse_args()
@@ -64,7 +67,9 @@ def main():
     if not a.reuse:
         code, gen_out = run([os.path.join(HERE, "generate.py"), "--prompt", a.prompt, "--negative", a.negative,
                              "--out", raw, "--engine", a.engine, "--model", a.model, "--size", str(a.size),
-                             "--seeds"] + [str(s) for s in a.seeds] + (["--lora", a.lora] if a.lora else []))
+                             "--seeds"] + [str(s) for s in a.seeds] + (["--lora", a.lora] if a.lora else [])
+                            + (["--source", a.source, "--denoise", str(a.denoise)] if a.source else [])
+                            + (["--control", a.control] if a.control else []))
     files = sorted(f for f in glob.glob(os.path.join(raw, "seed*.*")) if not f.endswith(".json"))
     rows = []
     for f in files:

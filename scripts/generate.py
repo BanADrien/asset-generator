@@ -48,12 +48,31 @@ def horde_key():
     return (k, True) if k and k != ANON_KEY else (ANON_KEY, False)
 
 
-def horde(prompt, negative, seeds, out, model, size, steps, cfg, log, lora=""):
+def prepare_source(path, size):
+    """Image de base pour la retouche (img2img) : sujet centre sur fond blanc, carre size x size,
+    agrandi proprement (LANCZOS), encode en webp base64 comme l'attend AI Horde."""
+    import io
+    from PIL import Image
+    im = Image.open(path).convert("RGBA")
+    bb = im.getchannel("A").getbbox()
+    if bb:
+        im = im.crop(bb)
+    s = (size * 0.82) / max(im.size)
+    im = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
+    bg = Image.new("RGBA", (size, size), (255, 255, 255, 255))
+    bg.alpha_composite(im, ((size - im.width) // 2, (size - im.height) // 2))
+    buf = io.BytesIO()
+    bg.convert("RGB").save(buf, "WEBP", quality=95)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def horde(prompt, negative, seeds, out, model, size, steps, cfg, log, lora="", source="", denoise=0.45, control=""):
     full = prompt + (" ### " + negative if negative else "")
     key, account = horde_key()
     log["cle_compte"] = account
     # Palier anonyme : 2 travaux a la fois ; avec un compte, priorite plus haute, 3 a la fois.
     slots = 3 if account else 2
+    src_b64 = prepare_source(source, size) if source else None
     todo = list(seeds)
     t0 = time.time()
     pending = {}
@@ -68,6 +87,12 @@ def horde(prompt, negative, seeds, out, model, size, steps, cfg, log, lora=""):
                 "models": [model], "nsfw": False, "censor_nsfw": True, "r2": True,
                 "trusted_workers": False, "slow_workers": True,
             }
+            if src_b64:  # retouche d'une image de base (img2img), ou forme imposee (ControlNet)
+                body["source_image"] = src_b64
+                body["source_processing"] = "img2img"
+                body["params"]["denoising_strength"] = denoise
+                if control:
+                    body["params"]["control_type"] = control
             try:
                 _, b, _ = http("POST", HORDE + "/generate/async", body, {"apikey": key})
                 pending[s] = json.loads(b)["id"]
@@ -151,13 +176,18 @@ def main():
     ap.add_argument("--steps", type=int, default=25)
     ap.add_argument("--cfg", type=float, default=7.0)
     ap.add_argument("--lora", default="", help="LoRA AI Horde (id CivitAI[:force]), ex. 120096:0.8 = Pixel Art XL")
+    ap.add_argument("--source", default="", help="image de base a retoucher (img2img)")
+    ap.add_argument("--denoise", type=float, default=0.45, help="force de retouche 0-1 (0,3 garde, 0,6 change)")
+    ap.add_argument("--control", default="", help="ControlNet AI Horde (canny, hed, depth...) : modeles SD 1.5 seulement")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     log = {"engine": a.engine, "model": a.model if a.engine == "horde" else "pollinations-anonyme",
            "prompt": a.prompt, "negative": a.negative, "seeds": a.seeds, "files": [], "errors": []}
     if a.engine == "horde":
         log["lora"] = a.lora
-        horde(a.prompt, a.negative, a.seeds, a.out, a.model, a.size, a.steps, a.cfg, log, a.lora)
+        log["source"] = a.source; log["denoise"] = a.denoise if a.source else None; log["control"] = a.control
+        horde(a.prompt, a.negative, a.seeds, a.out, a.model, a.size, a.steps, a.cfg, log, a.lora,
+              a.source, a.denoise, a.control)
         if not log["files"]:
             log["errors"].append("AI Horde n'a rien rendu : bascule sur Pollinations")
             log["engine"] = "pollinations (secours)"

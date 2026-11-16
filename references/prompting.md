@@ -61,3 +61,20 @@ texture, gradient background`
   taches de 1-2 px, contour exterieur. `--method pixel-fixer` garde plus de grain : a eviter
   sauf comparaison.
 - Toujours regarder les sprites a grossissement entier (x4, x8).
+
+## Retouche d'image (img2img) : METHODE PAR DEFAUT des qu'il existe une image de base
+Principe : « garder le champion, corriger un defaut a la fois ». On part d'une image deja
+bonne (l'etalon de style `style/etalon-style.png`, le sprite actuel du jeu, ou le meilleur
+essai precedent) et on la retouche au lieu de retirer au hasard (le texte -> image derive :
+tortue, grenouille, bonhomme).
+- `forge_try.py ... --source <image> --denoise 0.3-0.6` (AI Horde : `source_image` +
+  `source_processing: img2img` + `denoising_strength`, accepte avec la cle de compte).
+  0,3 garde presque tout (nettoyage, couleurs) ; 0,45-0,5 redessine en gardant l'anatomie ;
+  0,55-0,6 change la pose. Si l'essai degrade la base, BAISSER le denoising.
+- Prompt = le STYLE voulu (celui de l'etalon : « pale olive, cream belly, soft simple shading,
+  few colors, clean shapes, bold dark outline ») + la correction visee (yeux dessines,
+  verrues nettes, 4 pattes...). Negatif : bruit, couleurs criardes, autres animaux evoques.
+- Essai suivant : prendre comme `--source` l'image HD (`seedX.hd.png` ou `raw/seedX.webp`)
+  du meilleur essai et corriger SON defaut principal releve par les juges.
+- ControlNet (`--control canny|hed|depth`) : forme imposee par la base, seulement avec un
+  modele SD 1.5 (ex. `--model Deliberate`) ; voir learnings.md pour l'essai.

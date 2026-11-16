@@ -66,3 +66,17 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   taches de 1-2 px (`--despeckle 2`) : salissure 10 % -> 5 % sans perdre oeil ni reflet ;
   actives par defaut en profil detaille. Tolerance du test « taille » : 7 % (le recadrage
   mangeait 4-6 px sur 80).
+- 2026-11-16 - notes du lot « net » (5,5 / 4,5 / 1,5, juges 6,5 / 6,5 / 5,5) - juges trop
+  genereux ; un sujet lu « tortue/champignon » doit valoir 2 max ; jaune sature = penalite.
+  Grille v3.1 puis v3.2 (plafonds calcules par `scripts/score.py`, champ `animal_lu`,
+  `autre_lecture_dominante`, harmonie des couleurs, style etalon, ancre orange 6,75).
+  Validation v3.2 : ecart moyen 1,29 (0,94 sans le cas tortue) ; les juges ECRIVENT
+  « evoque une carapace » sans cocher « dominante » : a surveiller.
+- 2026-11-16 - etalon de STYLE = crapaud debout pale (`style/etalon-style.png`) ; ancre de
+  QUALITE = crapaud orange actuel (6,75). Un 8 doit le surpasser nettement.
+- 2026-11-16 - RETOUCHE (img2img AI Horde) : fonctionne avec la cle de compte (768 px,
+  `--source --denoise`). Base orange a 0,5 : garde anatomie et pose a 4 pattes, sprite net
+  (6,5, juges : « plus propre que l'ancre », oeil petit, pas de bouche, orange encore
+  sature). Base etalon a 0,55 : la pose debout NE change PAS (5) -> pour changer la pose,
+  partir d'une base deja dans la bonne pose. ControlNet (SD 1.5) refuse : HTTP 403, demande
+  des kudos que le compte neuf n'a pas.

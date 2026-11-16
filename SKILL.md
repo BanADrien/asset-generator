@@ -28,7 +28,9 @@ n'est pas un entrainement de modele. L'apprentissage, c'est `learnings.md`.
    commiter la cle ; dire seulement « cle de compte utilisee : oui/non » (`generate.json`).
 4. Dossier de travail : le scratchpad de la session s'il existe, sinon
    `$env:TEMP\pixel-art-forge\<date>-<sujet>`.
-5. Lire `calibration/calibration.md` : notes reelles de l'utilisateur, ses mots, et ce qu'on
+5. Lire `calibration/calibration.md` : notes reelles de l'utilisateur (13 images), ses mots,
+   l'etalon de STYLE (`style/etalon-style.png`) et l'ancre de QUALITE (crapaud orange actuel,
+   6,75 : un 8 doit le surpasser nettement), et ce qu'on
    en a appris : il veut du NET et LISIBLE (formes propres, contour net, parties distinctes,
    ombrage doux, detail propre) et deteste le bruit ; pose naturelle legerement preferee.
 6. Choisir le profil de taille (demander si l'utilisateur ne l'a pas dit ; defaut `petit`
@@ -40,19 +42,25 @@ n'est pas un entrainement de modele. L'apprentissage, c'est `learnings.md`.
    Le detail est dans `PROFILES` (`scripts/forge_lib.py`).
 
 ## Boucle (6 essais max, 3 en profil detaille si le temps presse)
+**Methode par defaut des qu'une image de base existe : la RETOUCHE** (`--source <image>
+--denoise 0.3-0.6`, voir `prompting.md`). « Garder le champion, corriger un defaut a la
+fois » : base = etalon de style, sprite actuel du jeu ou meilleur essai ; l'essai suivant
+repart du meilleur et corrige son defaut principal. Texte -> image seulement sans base.
 Pour chaque essai `n` :
 1. **Generer + pixeliser + mesurer + planches** en une commande :
-   `& $py -I scripts/forge_try.py --work W --essai n --profile petit|detaille --prompt "..." --negative "..." --seeds a b c [--method cells|cells2|pixel-fixer] [--lora 120096:0.8]`
+   `& $py -I scripts/forge_try.py --work W --essai n --profile petit|detaille --prompt "..." --negative "..." --seeds a b c [--source IMG --denoise 0.45] [--method cells|cells2|pixel-fixer] [--lora 120096:0.8]`
    (3 graines ; prompt court, < 45 mots, recette « net » de `prompting.md` ; le sprite est
    retourne automatiquement s'il semble regarder a gauche ; `--reuse W/essai-k/raw` pour
    repixeliser sans regenerer).
 2. **Preselection** : regarder `raw/` et les sprites a grossissement ENTIER (x4/x8 ; un
    agrandissement non entier invente des pointilles). Garder la graine la plus nette et
    lisible ; ecarter les plafonds 5 si un autre passe.
-3. **Juges** : lancer 2 sous-agents en parallele avec `references/judge-prompt.md` v3
+3. **Juges** : lancer 2 sous-agents en parallele avec `references/judge-prompt.md` (v3.2)
    (planche, sprite agrandi, `seed*.measure.json`, brief, ancres = images de `calibration/`
    avec les notes de l'utilisateur). Ils ne voient ni le prompt ni les essais.
-4. **Note** = min(juge 1, juge 2, plafond objectif) selon `references/rubric.md` partie C.
+4. **Note** : enregistrer les JSON des juges (`W/essai-n/juge1.json`, `juge2.json`) puis
+   `& $py -I scripts/score.py --judge juge1.json --judge juge2.json --measure seedX.measure.json`
+   (plafonds durs appliques par le calcul : sujet faux 2 max, bruit 3 max, 6,5 / 7 sans preuve).
    **Enregistrer chaque essai, retenu ou non** (l'utilisateur veut voir comment les juges
    notent) : `& $py -I scripts/history.py record --work W --essai n --seed seedX --note N --juge1 a --juge2 b [--plafond 5] --defauts "..." "..." "..."`
    (2-3 defauts en francais court, tires des `defauts_prioritaires`). Ne rien effacer dans W.
@@ -72,9 +80,10 @@ retoucher les mesures ou la grille pendant une boucle.
 2. Planche historique : `& $py -I scripts/history.py board --work W --out W/historique.png`
    (tous les essais dans l'ordre ; sous chacun : numero, note finale, notes des 2 juges,
    plafond objectif s'il s'applique, 2-3 defauts).
-3. `& $py -I scripts/deliver.py --name <sujet-pose> --sprite ... --board ... --history W/historique.png --notes ...`
-   -> `Telechargements` : PNG 1x transparent, apercu x8, planche, historique, notes
-   (suffixe -2, -3..., jamais d'ecrasement).
+3. `& $py -I scripts/deliver.py --name <sujet-pose> --sprite ... --history W/historique.png --notes ...`
+   -> `Telechargements` : sprite PNG 1x transparent, planche historique, notes (suffixe -2,
+   -3..., jamais d'ecrasement). La planche comparative reste dans W pour les juges
+   (l'utilisateur ne la veut plus ; `--board` seulement s'il la demande).
 4. Ajouter a `learnings.md` 1 a 3 lecons datees (ce qui a fait monter ou baisser la note).
 5. Rapport court a l'utilisateur : note, essais, chemins, ce qui limite encore.
 6. **Calibration** : demander a l'utilisateur SA note (et son prefere) pour les essais livres ;

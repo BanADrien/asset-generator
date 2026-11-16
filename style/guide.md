@@ -19,6 +19,15 @@ notation qui ramenent chaque image vers le style du jeu. Planche : `planche-exem
 - Moteur : Phaser 3, canvas 960x540, vue de profil (plateformer), sprites tournes vers la
   droite (le jeu retourne l'image pour la gauche).
 
+## REFERENCE DE STYLE (etalon) - `etalon-style.png` (+ `etalon-style-x8.png`)
+Parole de l'utilisateur : « je prefere quand meme le design de la version debout dans le
+style ». Cette image (crapaud debout du profil detaille, note 6,5) est le STYLE voulu pour
+ses assets : formes propres et simples, couleurs pales et sobres (olive clair, creme), ombrage
+doux en peu de valeurs, contour sombre net, aucun grain. A utiliser comme image source
+(`--source`) ou comme reference de prompt pour les futurs assets, et comme comparaison
+directe par les juges (critere « appartenance au style »).
+Le crapaud orange actuel du jeu reste l'ancre de QUALITE (6,75) : la barre a depasser.
+
 ## Deux profils de taille (l'utilisateur n'a pas encore tranche ; defaut : petit)
 - **petit** : densite des tuiles (1 px art = 2,67 px ecran), tableau ci-dessous. Lisible mais
   pauvre : meilleur resultat 5,5/10 selon l'utilisateur.

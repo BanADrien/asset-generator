@@ -16,9 +16,22 @@ l'utilisateur. A completer apres chaque livraison (demander sa note, ajouter une
 | crapaud-detaille1.png | detaille | **2** | v2.1 : 5 (« texture reussie ») | Marbrures grumeleuses, rond dore au front : SALE. Les juges se sont trompes. |
 | crapaud-detaille2.png | detaille | **6,5** | v2.1 : 4,5 | Crapaud debout, formes propres, contour net, ombrage doux, parties distinctes : SA MEILLEURE NOTE. |
 | crapaud-detaille3.png | detaille | **3** | v2.1 : 4,5 | Taches brunes en salissure, patte avant fondue : sale. |
+| crapaud-net1.png | detaille | **5,5** | v3 : 6,5 | Propre, 4 pattes, mais vert/jaune vif, lu « grenouille », oeil en anneau de face. |
+| crapaud-net2.png | detaille | **4,5** | v3 : 6,5 | Jaune sature, dos mouchete, griffures : couleur criarde + grain. |
+| crapaud-net3.png | detaille | **1,5** | v3 : 5,5 | Lu comme une tortue ou un champignon (dome a pois) : sujet faux. |
+| crapaud-orange-actuel.png | sprite IA actuel du jeu (taille ecran) | **6,75** (« 6,5 voire 7 ») | - | ANCRE DE QUALITE : un 8 doit etre nettement meilleur que lui. |
+| crapaud-codex-brut.png | image brute Codex (non reduite, HD) | **7,25** (« 7 voire 7,5 ») | - | SA MEILLEURE NOTE : la meilleure image source vue. |
+| crapaud-codex-reduit1.png | la meme famille reduite par le skill (64 px, palette) | **4** | 6,5 | La reduction a fait perdre ~3 points : oeil en tiret, verrues en plaques, couleurs ternies. |
+| crapaud-codex-reduit2.png | idem | **4** | 6,5 | Idem : juges trop genereux de 2,5 sur une image propre qui a perdu son oeil. |
 
-Classement : detaille2 (6,5) > essai4 = essai6 (5,5) > essai1 = essai3 = essai5 (4) >
-detaille3 (3) > code32 = detaille1 (2) > essai2 (1,5). Son echelle est severe : 8 reste loin.
+Reference de STYLE (≠ ancre de qualite) : `crapaud-detaille2.png`, copiee en
+`style/etalon-style.png`. Parole de l'utilisateur : « je prefere quand meme le design de la
+version debout dans le style ». Le style voulu pour ses assets : formes propres et simples,
+couleurs pales et sobres, ombrage doux, contour net. Le crapaud orange reste la barre de qualite.
+
+Classement : detaille2 (6,5) > essai4 = essai6 = net1 (5,5) > net2 (4,5) > essai1 = essai3 =
+essai5 (4) > detaille3 (3) > code32 = detaille1 (2) > essai2 = net3 (1,5).
+Son echelle est severe : 6,5 = « le meilleur vu jusqu'ici, encore loin du compte ». 8 reste loin.
 
 ## Paroles de l'utilisateur
 - « detaille, realiste ».
@@ -27,6 +40,8 @@ detaille3 (3) > code32 = detaille1 (2) > essai2 (1,5). Son echelle est severe : 
 - Le crapaud 32 px dessine en code est « nul ».
 - « la pose est moins redhibitoire, meme si je prefererais une pose a 4 pattes comme un
   crapaud normal » (dit apres le lot detaille).
+- Le crapaud orange actuel du jeu vaut « 6,5 voire 7 ».
+- « je prefere quand meme le design de la version debout dans le style » (crapaud-detaille2).
 
 ## Interpretation de Claude (v3, remplace l'ancienne regle « volume et matiere meme sales »)
 1. Il recompense la NETTETE et la LISIBILITE : formes propres, contour sombre net, parties
@@ -43,6 +58,74 @@ detaille3 (3) > code32 = detaille1 (2) > essai2 (1,5). Son echelle est severe : 
 5. Mesure objective qui suit son gout : part des pixels en taches de 1-2 px (« salissure »).
    Profil detaille : propre 10,5 % (6,5/10) contre 19,6-23,3 % (2-3/10) -> seuil 15 %.
    Profil petit : 15-22 % pour les notes 4-5,5, 40 % pour l'essai 1 -> seuil 25 %.
+
+## Interpretation de Claude (v3.1, apres le lot « net » : juges trop genereux de 1, 2 et 4)
+6. SUJET FAUX = 2 MAXIMUM : net3 a ete « lu comme une tortue ou un champignon » par les juges,
+   qui ont quand meme mis 5,5 ; l'utilisateur 1,5 (meme faute que la brique jaune, essai2).
+   Regle dure appliquee par le calcul (`scripts/score.py`, champ `animal_lu` du juge) : si
+   la lecture a froid ne nomme pas le bon animal, 2 maximum ; un cousin proche (grenouille
+   pour crapaud) coute 1 point, sans plafond.
+7. COULEURS : ses deux pires notes « colorees » sont les deux essais jaunes (essai2 1,5 ;
+   net2 4,5). Ses mieux notes ont des couleurs sobres, naturelles, peu nombreuses (crapaud
+   pale 6,5 ; olive 5,5). Critere « harmonie des couleurs » ; teinte criarde dominante (jaune
+   ou vert fluo) : -1,5.
+8. GENEROSITE : les juges v3 donnaient ~+1 en haut d'echelle. Pas plus de 6,5 sans surpasser
+   NETTEMENT l'ancre a 6,5 (detaille2) sur un point precis cite (champ `depasse_ancre`).
+9. OEIL : un oeil « en anneau » ou vu de face sur un corps de 3/4 lui deplait probablement
+   (net1 5,5, sous l'ancre). Les juges verifient iris, pupille, reflet, place de l'oeil.
+
+## Validation de la grille v3.1 (12 images, leave-one-out, 1 juge par image)
+| Image | Utilisateur | v3.1 | Ecart | Ce qui a joue |
+|---|---|---|---|---|
+| essai1 | 4 | 3 | -1 | bruit dominant : 3 max |
+| essai2 | 1,5 | 2 | +0,5 | animal lu « aucun » : 2 max |
+| essai3 | 4 | 4,5 | +0,5 | |
+| essai4 | 5,5 | 6 | +0,5 | |
+| essai5 | 4 | 5 | +1 | |
+| essai6 | 5,5 | 4 | -1,5 | |
+| detaille1 | 2 | 3 | +1 | bruit dominant : 3 max |
+| detaille2 | 6,5 | 4,5 | -2 | oeil en anneau, juge severe |
+| detaille3 | 3 | 3 | 0 | bruit dominant : 3 max |
+| net1 | 5,5 | 2 | -3,5 | lu « grenouille » -1 et teinte criarde -1,5 : trop puni |
+| net2 | 4,5 | 6 | +1,5 | jaune non signale comme criard par ce juge |
+| net3 | 1,5 | 6,5 | +5 | le juge a ecrit « crapaud » tout en notant « evoque une carapace ou un champignon » |
+Ecart moyen 1,50, max 5 : objectifs NON atteints. D'ou l'ajustement unique v3.2 :
+champ `autre_lecture_dominante` (un autre animal/objet saute aux yeux -> 2 max), penalites
+cousin et couleur non cumulables (-1,5 au total), critere « appartenance au style » (etalon),
+ancre orange a 6,75 et borne a 7 sans le surpasser.
+
+## Interpretation de Claude (apres le test Codex, 16/11/2026)
+10. LA REDUCTION EST LE PREMIER FACTEUR LIMITANT : une bonne image (Codex brut 7,25) perd
+    environ 3 points en passant par la reduction du skill (64 px + palette du jeu) : oeil
+    reduit a un tiret, verrues en plaques, couleurs ternies (sprites reduits : 4). Avant le
+    generateur, c'est la reduction qu'il faut rendre fidele (travail en cours par un autre
+    agent : reduction fidele a la grille ; `pixelize.py` n'est pas modifie en attendant).
+11. Les juges restent trop genereux (~2,5 points) sur une image propre qui a perdu son oeil.
+    Regle dure (calculee par `score.py`) : oeil reduit a un tiret ou a un carre plat
+    (`oeil_plat`), ou bouche absente (`bouche_absente`) -> **4,5 maximum**.
+
+## Validation de la grille v3.2 (13 images dont l'orange, leave-one-out, 1 juge par image)
+| Image | Utilisateur | v3.2 | Ecart |
+|---|---|---|---|
+| essai1 | 4 | 3 | -1 |
+| essai2 | 1,5 | 1,5 | 0 |
+| essai3 | 4 | 4,5 | +0,5 |
+| essai4 | 5,5 | 6 | +0,5 |
+| essai5 | 4 | 4,5 | +0,5 |
+| essai6 | 5,5 | 3 | -2,5 (bruit dominant) |
+| detaille1 | 2 | 3 | +1 |
+| detaille2 | 6,5 | 4 | -2,5 (oeil en anneau) |
+| detaille3 | 3 | 3 | 0 |
+| net1 | 5,5 | 3,5 | -2 (grenouille + criard) |
+| net2 | 4,5 | 4 | -0,5 |
+| net3 | 1,5 | 7 | +5,5 (juge : « evoque une carapace ou un champignon » mais non coche « dominante ») |
+| orange actuel | 6,75 | 7 | +0,25 |
+Ecart moyen 1,29, max 5,5 : objectifs NON atteints (sans net3 : 0,94). L'ajustement unique
+est utilise ; pas d'autre retouche. Le crapaud orange est bien place (7 pour 6,75).
+Limites constatees : les juges ne cochent pas « autre lecture dominante » meme quand ils
+l'ecrivent ; ils sous-notent l'etalon (anneau d'oeil) et les petits sprites marbres que
+l'utilisateur aime. Piste : faire nommer 3 choses a froid par un juge SANS la demande et
+compter « tortue/champignon » comme faux si cite en premier.
 
 ## Validation de la grille v3 (leave-one-out, 1 juge par image, sans voir la note de son image)
 | Image | Utilisateur | Juge v3 | Ecart |
