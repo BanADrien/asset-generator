@@ -317,3 +317,16 @@ Lecture (interpretation de Claude) :
 - La gueule fermee est PREFEREE a la gueule ouverte (« je prefere la 1 gueule fermee que la
   ref »). Ameliorations de dessin quand meme demandees ensuite : bouche fermee vraiment tracee,
   gorge modelee au lieu d'un bloc creme plat.
+
+## Essai 6 (3, 4, 5 crans de realisme sur la retouche n°3) - parole de l'utilisateur
+« la 1 et la 2 sont mieux, un niveau de realisme intermediaire est parfait, la forme avec la
+grosse gorge est bien, il est bien proportionne, mais je voudrais quand meme 6 nouvelles
+propositions avec d'autres styles ».
+Pas de chiffres : ORDRE seulement -> retouches 1 et 2 (3 et 4 crans) > retouche 3 (5 crans) et
+reference.
+ACQUIS VALIDES (par lui) :
+- Niveau de realisme : celui des retouches 1 et 2 (3 a 4 crans). 5 crans = au-dessus, c'est le
+  haut du curseur.
+- Forme : ce crapaud (grosse gorge, bien proportionne), gueule fermee.
+- Image cible principale : `references/cible/crapaud-cible-principale-1.png` et `-2.png`
+  (remplacent le n°7 de l'essai 3 comme cible principale).

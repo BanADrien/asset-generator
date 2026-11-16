@@ -36,6 +36,12 @@ critere n°1 au-dela de la technique. Image cible : `references/cible/crapaud-ci
 (defauts cites : bouche ouverte, pas assez realiste). Quand un design plait, le CONSERVER
 (silhouette, pose, proportions, taille de grille) et ne retoucher que les defauts cites.
 
+## ACQUIS VALIDES PAR L'UTILISATEUR (crapaud, 16/11/2026)
+« un niveau de realisme intermediaire est parfait, la forme avec la grosse gorge est bien, il
+est bien proportionne ». Realisme : 3 a 4 crans au-dessus de l'anguleux (5 crans = haut du
+curseur, deja moins bien). Forme : grosse gorge, bien proportionne, gueule fermee. Cible
+principale : `references/cible/crapaud-cible-principale-1.png` et `-2.png` (~98x64).
+
 ## REFERENCE DE STYLE (etalon) - `etalon-style.png` (+ `etalon-style-x8.png`)
 Parole de l'utilisateur : « je prefere quand meme le design de la version debout dans le
 style ». Cette image (crapaud debout du profil detaille, note 6,5) est le STYLE voulu pour

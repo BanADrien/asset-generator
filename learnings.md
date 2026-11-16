@@ -147,3 +147,7 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
 - 2026-11-16 - « j'ai jamais dit qu'il etait a 6 » : une note de sa liste affichee sur la
   planche suivante comme etiquette de reference l'a trompe. Ses notes sont RELATIVES a la
   planche : remettre la reference SANS note et la lui faire renoter.
+- 2026-11-16 - essai 7 : meme crapaud (retouche 2 de l'essai 6 jointe) en 6 styles de dessin
+  generes separement, ~2 min : 6 styles distincts, forme conservee sur les 6. Le tramage
+  retro a fait detecter une grille plus fine (122x80) ; « clair de lune » vire au bleu malgre
+  « must stay brown-olive ».
