@@ -1,5 +1,12 @@
 # Lecons apprises (relire au debut de chaque utilisation, ajouter a la fin de chaque essai)
 
+## BILAN (16/11/2026, apres ~45 images) - a lire en premier
+La chaine technique donne de facon fiable un 7 (Codex + reduction native, realiste propre).
+Aucune exploration a l'aveugle n'a depasse 7,25. Les hypotheses de gout deduites des notes
+ont ete refutees une fois sur deux. REGLE : au-dela de 7, ne plus explorer sans IMAGES DE
+REFERENCE fournies par l'utilisateur (sprites qu'il trouve a 9-10, dans `references/cible/`).
+Sans elles, les lui demander avant de generer.
+
 Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle a retenir.
 
 - 2026-11-16 - mise en place - (-) `AIO Pixel Art` (SD1.5) donne un vrai rendu pixel mais

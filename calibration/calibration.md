@@ -266,3 +266,22 @@ Lecture (interpretation de Claude ; options contrastees, lectures valides ; hypo
   bas que l'originale : ne jamais resservir la meme.
 - Plus le sprite est grand, plus Codex y met de detail, plus ca fait « trop realiste » : la
   petite taille fait partie du style voulu, pas seulement une contrainte d'integration.
+
+## Notes de l'essai 4 « anguleux realiste » (16/11/2026)
+1 Anguleux + realisme, trapu 1 ; 2 Anguleux realiste, elance assis 3 ; 3 Elance assis
+simplifie 4,5 ; 4 Anguleux realiste, trois-quarts 2.
+Ses mots : « la n°2 et la n°3 ressemblent trop a des grenouilles, et les 2 autres sont pas
+beaux et pas ergonomiques ».
+
+Lecture (interpretation de Claude) :
+- a) REFUTE : « anguleux + plus de realisme » ne monte pas. Les 4 sont sous le n°7 de
+  l'essai 3 (6) et sous les realistes propres (7).
+- b) Une silhouette fine et relevee, en petit format et simplifiee, se lit « grenouille ».
+  L'elance assis de l'essai 3 (7) gardait une peau et des teintes de crapaud ; simplifie, il
+  perd son identite. Un crapaud doit garder ses marqueurs : corps large, peau verruqueuse,
+  glandes derriere l'oeil.
+- c) « Pas ergonomique » : sens A LUI FAIRE PRECISER. Hypothese : un sprite de plateforme
+  doit etre de profil net, avec un sens de marche evident et une silhouette simple a animer ;
+  le trois-quarts face (n°4) et le bloc massif (n°1) ne le sont pas.
+- d) A petite taille, les plans tailles deviennent des marches d'escalier grossieres :
+  l'anguleux supporte mal les 60 a 90 px.

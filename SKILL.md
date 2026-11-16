@@ -12,6 +12,9 @@ jusqu'a 8/10. Claude ne dessine pas : Codex genere des images brutes en pixel ar
 modele. L'apprentissage, c'est `learnings.md` et `calibration/`.
 
 ## Avant de commencer
+0. **Images de reference du style vise** : s'il n'y en a pas dans `references/cible/`, demander
+   d'abord a l'utilisateur 2-3 images de reference du style vise (sprites qu'il trouve a 9-10),
+   avant toute generation. Sans elles la chaine plafonne a ~7 (voir le bilan de `learnings.md`).
 1. Lire `learnings.md`, `style/guide.md` (taille et integration), `references/prompting.md`
    (Codex, modeles de prompt, corrections) et `calibration/calibration.md` (notes reelles de
    l'utilisateur, ses mots ; il veut du NET et LISIBLE, couleurs sobres, detail propre, pose
