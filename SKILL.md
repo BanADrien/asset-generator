@@ -90,8 +90,10 @@ Detail, table des couleurs et integration Phaser : `references/lumiere.md`.
    Regarder l'apercu (zones = parties de l'animal ? lumiere a gauche = cote gauche eclaire ?).
    Neutre rate : `--rampes` / `--garder` ; en dernier recours UNE generation Codex (voir
    `lumiere.md`), gardee seulement si la silhouette est identique au pixel pres.
-   Sprite HD du jeu (image peinte affichee reduite) : `--echelle-jeu <setScale du code>
-   --sortie W/<nom>` le ramene d'abord a sa taille vue en jeu (32 couleurs, alpha net).
+   Sprite du jeu : CAS GENERAL, il est passe en pixel art par pixel-fixer -> `--facteur f`
+   (f lu dans `src/data/pixel_fixed.js` du jeu) : retour a la resolution native exacte.
+   Sinon (image encore peinte) : `--echelle-jeu <setScale du code>` le ramene a sa taille vue
+   en jeu (32 couleurs, alpha net). Toujours prendre la branche de travail recente du jeu.
    ANIMATION (marche, course...) : frames, ordre et frameRate lus dans le code du jeu
    (`anims.create`) ; toutes les frames en UNE commande pour eviter le clignotement :
    `sections.py <frames ou dossier> --animation [--echelle-jeu S] --fps F --vitesse V --sortie W/<nom>`

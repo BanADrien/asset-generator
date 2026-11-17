@@ -21,8 +21,28 @@ Options : `--garder dea019,fdfdfd` (couleurs a garder telles quelles), `--rampes
 qui regarde a gauche, voir Phaser), `--apercu` (planche : origine, neutre, sections, eclaire a
 gauche, eclaire a droite).
 
-## Sprites HD du jeu (mode « image peinte », `--echelle-jeu`)
-Les sprites actuels du jeu (loup, ours, Agarica...) sont des images peintes de 200-700 px, a
+## Sprites du jeu passes en pixel art par pixel-fixer (`--facteur f`) : CAS GENERAL
+Depuis la branche `feature/demo-histoire` (11/2026), les sprites du jeu sont refaits en pixel art
+par `tools/pixelfix.js` : l'image garde sa taille HD mais chaque pixel dessine est un bloc de `f` px,
+`f` etant note dans `src/data/pixel_fixed.js` (ex. marche d'Agarica 3,76 ; loup 2,5 / 2,17 ;
+grizzly 3,65-6,02 selon la frame ; crapaud 2,5). Les originaux IA sont dans
+`assets/_pixelfix_originals/`. Le jeu les affiche sans lissage (NEAREST) a leur `setScale`.
+`--facteur f` revient a la resolution NATIVE exacte : la grille est calee automatiquement (decalage
+qui rend chaque case la plus uniforme), 1 case = 1 pixel (couleur du centre), couleurs de l'image
+gardees telles quelles (pas de nouvelle palette). En animation, une seule grille pour toutes les
+frames. Lire les fichiers du jeu avec git (`git show`, `git cat-file blob`) si le checkout est
+incomplet ; ne rien modifier dans le depot du jeu.
+
+    & $py -I scripts/sections.py frames_marche/ --animation --facteur 3.76 --fps 12 --vitesse 190 --sortie W/agarica-marche
+
+Meme rampe, deux matieres : pixel-fixer donne une palette commune ou la peau et la tunique beige
+partagent les memes couleurs. Les parties de chaque rampe (fermees par des traits) sont alors
+classees en deux groupes par luminosite moyenne (2-moyennes, sur toutes les frames a la fois) ;
+deux groupes a plus de 12 L* d'ecart et chacun >= 15 % de la rampe prennent chacun leur couleur
+neutre (visage clair, tunique plus sombre), identique d'une frame a l'autre.
+
+## Sprites HD non convertis (mode « image peinte », `--echelle-jeu`)
+Pour une image encore peinte (absente de pixel_fixed.js). Ces images de 200-700 px, a
 milliers de couleurs et bords semi-transparents, affichees reduites (`setScale`, constantes de
 `src/entities/Player.js` : WOLF_SCALE 0,4, OURS_SCALE 0,34, HUMAN_SCALE 0,24). Methode retenue :
 on travaille A LA TAILLE VUE EN JEU (rendu fidele, pixels nets ensuite a l'echelle 1) :

@@ -24,6 +24,9 @@ Usage :
   Animation (toutes les frames ensemble, sans clignotement) :
   python -I sections.py FRAME0.png FRAME1.png ... --animation [--echelle-jeu 0.24] --fps 12 --sortie W/marche
   -> W/marche_N.png + .neutre/.normales/.sections de chaque frame, W/marche.planche.png, W/marche.anim.json
+  Sprite deja passe en pixel art par pixel-fixer (cas general du jeu, src/data/pixel_fixed.js) :
+  python -I sections.py FRAME.png --facteur 3.76 --sortie W/nom   (aussi avec --animation)
+  -> resolution native exacte (1 case de f px = 1 pixel), couleurs de l'image gardees.
   Image peinte (sprite HD du jeu, affiche reduit par setScale) :
   python -I sections.py FRAME_HD.png --echelle-jeu 0.4 [--couleurs 24] --sortie W/loup
   -> W/loup.png (taille reelle a l'ecran, alpha net, palette reduite) puis les memes sorties.
@@ -43,6 +46,7 @@ DIRS = [("droite", 0), ("haut-droite", 45), ("haut", 90), ("haut-gauche", 135),
 TILT_INC, TILT_RAS = 40.0, 68.0
 GBLUR_MIN, GBLUR_REL, GPAD = 4.0, 0.1, 12  # flou de la silhouette (bombe global) = max(4, 0,1 x petit cote) ; marge des parties
 RAMP_SPAN = 48.0  # etendue max de luminosite (L*) d'une rampe
+PART_DL, PART_MIN, PART_PART = 12.0, 20, 0.15  # 2 groupes de parties a >= 12 L* d'ecart, chacun >= 15 % de la rampe
 W_GLOBAL, W_PART, W_SHADE = 0.7, 0.55, 0.3  # poids : volume d'ensemble, bombe des parties, ombrage d'origine
 
 
@@ -526,16 +530,57 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
             if cnt and cnt.most_common(1)[0][0] != rid_of[p]:
                 for t in comp:
                     rid_of[t] = cnt.most_common(1)[0][0]
+    # meme rampe, deux matieres : les couleurs d'une rampe peuvent servir a deux matieres de meme
+    # teinte (peau claire et tunique beige d'Agarica). On classe les PARTIES de la rampe (fermees par
+    # des traits) en deux groupes par leur luminosite moyenne (2-moyennes, sur toutes les frames
+    # d'une animation a la fois : decision identique d'une frame a l'autre) ; si les deux groupes
+    # sont nettement distincts et chacun assez gros, chaque groupe prend sa propre couleur neutre.
+    part_base = {}
+    acc = {}
+    for p, r in rid_of.items():
+        if ramp_of.get(col[p]) != r:   # grains absorbes d'une autre couleur : hors moyenne
+            continue
+        k = (region.get(p), r)
+        a_ = acc.setdefault(k, [0.0, 0.0, 0.0, 0])
+        l_ = lab(col[p])
+        a_[0] += l_[0]; a_[1] += l_[1]; a_[2] += l_[2]; a_[3] += 1
+    par_rampe = {}
+    for (reg_, r), a_ in acc.items():
+        par_rampe.setdefault(r, []).append((reg_, a_))
+    for r, parts in par_rampe.items():
+        big = [(reg_, a_) for reg_, a_ in parts if a_[3] >= PART_MIN]
+        if len(big) < 2:
+            continue
+        ls = [a_[0] / a_[3] for _, a_ in big]
+        ws = [a_[3] for _, a_ in big]
+        c1, c2 = min(ls), max(ls)
+        for _ in range(20):
+            g1 = [i for i, l_ in enumerate(ls) if abs(l_ - c1) <= abs(l_ - c2)]
+            g2 = [i for i in range(len(ls)) if i not in g1]
+            if not g1 or not g2:
+                break
+            c1 = sum(ls[i] * ws[i] for i in g1) / sum(ws[i] for i in g1)
+            c2 = sum(ls[i] * ws[i] for i in g2) / sum(ws[i] for i in g2)
+        tot_w = sum(a_[3] for _, a_ in parts)
+        if not g1 or not g2 or abs(c2 - c1) < PART_DL or \
+                min(sum(ws[i] for i in g1), sum(ws[i] for i in g2)) < PART_PART * tot_w:
+            continue
+        for g in (g1, g2):
+            sw = sum(big[i][1][3] for i in g)
+            m = tuple(sum(big[i][1][k] for i in g) / sw for k in range(3))
+            cb = min(ramps[r], key=lambda c: math.dist(lab(c), m))
+            for i in g:
+                part_base[(big[i][0], r)] = cb
     neutral = {}
     for p in opq:
         c = col[p]
         if p in line_px or p in protected_px:
             neutral[p] = c
         else:
-            neutral[p] = base[rid_of[p]]
+            neutral[p] = part_base.get((region.get(p), rid_of[p]), base[rid_of[p]])
     info = {"ramps": [(hexc(base[i]), [hexc(c) for c in sorted(r, key=lambda c: L[c])]) for i, r in enumerate(ramps)],
             "lines": sorted(hexc(c) for c in dark), "protected": sorted({hexc(col[p]) for p in protected_px}),
-            "parts": len(set(region.values())), "region": region, "line_px": line_px, "outline": outline}
+            "parts": len(set(region.values())), "region": region, "line_px": line_px, "outline": outline, "part_base": part_base}
     return opq, neutral, codes, info
 
 
@@ -700,6 +745,51 @@ def peint_vers_jeu(im, echelle, ncol=32):
     return out.crop(out.getchannel("A").getbbox())
 
 
+# ---------------------------------------------------------------- facteur pixel-fixer
+def phase_grille(im, f, pas=0.5):
+    """Calage de la grille de f px (pixel-fixer) : decalage (px, py) pour lequel chaque case est
+    la plus uniforme (le centre et les points a +-0,3 f ont la meme couleur)."""
+    px = im.load()
+    w, h = im.size
+    d = max(1, int(0.3 * f))
+    best, bv = (0.0, 0.0), -1
+    steps = [i * pas for i in range(int(f / pas) + 1) if i * pas < f]
+    for ox in steps:
+        for oy in steps:
+            v = 0
+            y = oy + f / 2
+            while y < h - d:
+                x = ox + f / 2
+                while x < w - d:
+                    cx, cy = int(x), int(y)
+                    c = px[cx, cy]
+                    if c[3] >= 128:
+                        v += (px[cx - d, cy] == c) + (px[cx + d, cy] == c) + (px[cx, cy - d] == c) + (px[cx, cy + d] == c)
+                    x += f
+                y += f
+            if v > bv:
+                best, bv = (ox, oy), v
+    return best
+
+
+def echantillonner(im, f, phase=None):
+    """Sprite deja en pixel art agrandi (pixel-fixer, src/data/pixel_fixed.js : 1 pixel dessine =
+    f px de l'image) -> resolution NATIVE exacte : 1 case de f px = 1 pixel, couleur du centre de
+    la case. Pas de reduction, pas de nouvelle palette : les couleurs de l'image sont gardees."""
+    ox, oy = phase if phase is not None else phase_grille(im, f)
+    w, h = im.size
+    n_w = int((w - ox) // f)
+    n_h = int((h - oy) // f)
+    src = im.load()
+    out = Image.new("RGBA", (n_w, n_h), (0, 0, 0, 0))
+    for j in range(n_h):
+        for i in range(n_w):
+            c = src[min(w - 1, int(ox + (i + 0.5) * f)), min(h - 1, int(oy + (j + 0.5) * f))]
+            if c[3] >= 128:
+                out.putpixel((i, j), c[:3] + (255,))
+    return out
+
+
 # ---------------------------------------------------------------- animation
 def meilleur_decalage(ca, cb, r=3):
     """Decalage (dx, dy) qui superpose le mieux la frame b sur la frame a (memes couleurs)."""
@@ -758,7 +848,7 @@ def lisser_temps(codes, cols, keep):
     return out, avant, taux(out)
 
 
-def animation(paths, stem, echelle=0.0, ncol=32, fps=12, vitesse=0, garder=(), rampes=()):
+def animation(paths, stem, echelle=0.0, ncol=32, fps=12, vitesse=0, garder=(), rampes=(), facteur=0.0):
     """Toutes les frames d'une animation traitees ENSEMBLE : meme toile calee en bas au centre
     (origine (0.5, 1) de Phaser : pieds au meme niveau), meme cadrage, meme reduction, meme palette,
     memes matieres (analyse d'une mosaique des frames), puis lissage dans le temps."""
@@ -770,6 +860,11 @@ def animation(paths, stem, echelle=0.0, ncol=32, fps=12, vitesse=0, garder=(), r
         c = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         c.paste(f, ((W - f.width) // 2, H - f.height))
         canv.append(c)
+    if facteur > 0:
+        # une seule grille (calee sur la 1re frame) pour toutes : meme decoupe, frames superposables
+        ph = phase_grille(canv[0], facteur)
+        canv = [echantillonner(c, facteur, ph) for c in canv]
+        echelle = 0.0
     boxes = [c.getchannel("A").point(lambda v: 255 if v >= 24 else 0).getbbox() for c in canv]
     box = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
     canv = [c.crop(box) for c in canv]
@@ -861,6 +956,9 @@ def main():
                     help="mode image peinte : echelle d'affichage dans le jeu (setScale, ex. 0.4) ; "
                          "le sprite HD est d'abord ramene a cette taille")
     ap.add_argument("--couleurs", type=int, default=32, help="mode image peinte : nombre de couleurs")
+    ap.add_argument("--facteur", type=float, default=0.0,
+                    help="sprite deja passe en pixel art par pixel-fixer : f de src/data/pixel_fixed.js "
+                         "(px de l'image par pixel dessine) ; on revient a la resolution native exacte")
     ap.add_argument("--sortie", default="", help="chemin de base des sorties (defaut : celui du sprite)")
     a = ap.parse_args()
     garder = [g for g in a.garder.split(",") if g.strip()]
@@ -874,7 +972,7 @@ def main():
                 paths.append(s_)
         stem = os.path.splitext(a.sortie or paths[0])[0]
         info, avant, apres, taille = animation(paths, stem, a.echelle_jeu, a.couleurs, a.fps, a.vitesse,
-                                               garder, rampes)
+                                               garder, rampes, a.facteur)
         print("%d frames %d x %d -> %s_N.png (+ .neutre .normales .sections), %s.planche.png, %s.anim.json"
               % (len(paths), taille[0], taille[1], stem, stem, stem))
         print("rampes communes :", " | ".join("%s <- %s" % (b, " ".join(r)) for b, r in info["ramps"]))
@@ -884,7 +982,12 @@ def main():
     a.sprite = a.sprite[0]
     stem = os.path.splitext(a.sortie or a.sprite)[0]
     im = Image.open(a.sprite).convert("RGBA")
-    if a.echelle_jeu > 0:
+    if a.facteur > 0:
+        im = echantillonner(im, a.facteur)
+        im = im.crop(im.getchannel("A").getbbox())
+        im.save(stem + ".png")
+        print(stem + ".png", "(natif %d x %d, %d couleurs)" % (im.width, im.height, len(im.getcolors(1 << 16))))
+    elif a.echelle_jeu > 0:
         im = peint_vers_jeu(im, a.echelle_jeu, a.couleurs)
         im.save(stem + ".png")
         print(stem + ".png", "(%d x %d, %d couleurs)" % (im.width, im.height, len(im.getcolors(1 << 16))))
