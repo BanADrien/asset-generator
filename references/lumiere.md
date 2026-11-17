@@ -131,7 +131,8 @@ jeu). Autonome, double-clic, Chrome : le sprite au centre a echelle entiere,
 lumiere a glisser (souris ou doigt), WebGL sans bibliotheque. Reglages : hauteur, intensite,
 portee, ambiante, profondeur de la lumiere (-60 derriere a +60 devant, 8 par defaut ; trop
 grande devant, le sommet des formes s'assombrit quand la lampe est proche ; derriere : contre-jour,
-point lumineux cache par la silhouette avec un halo, reglage « Contre-jour » du lisere), couleur
+point lumineux cache par la silhouette avec un halo ; reglages « Contre-jour » et « Epaisseur du
+lisere » 1-2 px), couleur
 (torche, lune, blanc), paliers 2-5 ou lisse, 2e lumiere, affichage du
 sprite d'origine / des sections / des normales a la place. Adresse : `#l=0.1,0.3` (lumiere au
 depart, fraction de la boite affichee), `&a=2` (asset), `&tous`, `&m=2` (affichage).
@@ -202,13 +203,22 @@ classe, apres `super.onRender(scene, camera)` :
       this.set1f(`uLightZ[${i}]`, l.profondeur ?? 0.015));   // negatif = derriere ; meme ordre que Phaser
 
 Lumiere derriere : le produit scalaire (sans valeur absolue) eteint les faces tournees vers l'avant.
-Le lisere vient du bord : les normales rasantes quantifiees (z ~0,37) captent peu une lampe
-derriere ; la page ajoute donc, seulement sur le bord de la silhouette (pixel vide a 1-2 px : 9-25
-lectures de l'alpha, il faut un uniform de taille de texel) et la ou la normale pointe vers la
-lampe dans le plan, `lisere = contre x bord x max(0, n.xy . L.xy) x clamp(-z / 10, 0, 1)`, puis
-`diff = max(diff, lisere)` avant les paliers. Mesures (lampe a gauche, 8 px du bord, z = -20,
-contre-jour 0,8) : demi-sphere bord gauche 0,14, interieur 0,00, bord droit 0,00 ; Agarica bord
-gauche 0,27, interieur 0,04, bord droit 0,03. Sans ce lisere la demi-sphere restait entierement noire.
+Le contre-jour est un LISERE EMIS sur le contour exterieur, ajoute a la couleur (pas multiplie :
+noir x lumiere = noir, le gros contour noir resterait noir) :
+
+    bord  = un pixel vide a <= e px (e = 1 ou 2, lectures de l'alpha voisin : uniform de taille de texel)
+    d2    = distance dans le plan lampe-pixel ; d3 = sqrt(d2^2 + z^2)
+    s     = -z / d3                                   // diffusion vers l'avant : fort juste derriere
+    att   = clamp(1 - d3^2 / portee^2, 0, 1)
+    w     = 0.5 + 0.5 * abs(dot(normalize(n.xy), dir2(lampe)))
+    l     = min(floor(contre * s * att * w * 3), 2) / 2   // 0 / 0,5 / 1
+    color.rgb += bord * l * couleurLampe * intensite * 0.9
+
+Pas de test « lampe cachee ou non » : continu quand la lampe sort de la silhouette. Cachee au
+centre, tout le tour s'allume (plus fort pres d'elle) ; decalee, le bord proche fort puis estompe.
+Mesures (contre-jour 1,5, z = -20, part du contour allume) : lampe au centre, crapaud 93-100 % sur
+les 4 cotes, Agarica 98-100 % ; lampe hors silhouette a 8 px a gauche, crapaud bord gauche 0,75
+(100 %) / droit 0 ; Agarica gauche 0,70 (100 %) / droit 0,15 (29 %). Devant (z >= 0) : rien ne change.
 
 ### Sprite retourne (flipX) : inverser normal.x dans le meme pipeline
 Dans la copie du shader, remplacer la ligne du calcul de `normal` par :
