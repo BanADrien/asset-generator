@@ -211,12 +211,12 @@ sans branche sur z ni sur « lampe cachee » ; seuls les paliers font des marche
     ne    = normalize(mix(n_section, n_lissee_5x5, wb))
     L     = direction 3D vraie vers la lampe (z negatif compris)
     diff  = max((ne . L + w) / (1 + w), 0) x att3D,  w = 0,5 wb      // « wrap » doux
-    occ   = smoothstep(-8, 6, distance signee lampe/silhouette)       // lampe cachee, en douceur
+    occ   = smoothstep(-8, 0, distance signee lampe/silhouette)       // v14 ; plus utilise par cj (v15)
             (dedans : profondeur ; dehors : -distance ; texture de geometrie, marge 10 px)
-    cj    = 0,467 contre x wb x clamp((1 - n_section.z) / 0,5)            // plans des SECTIONS (v14)
-            x (0,5 + 0,5 max(n2.u, -n2.u x occ))^3                         // n2 : normale lissee
-            x sc^2, sc = |z| / sqrt(d2^2 + z^2)                             // diffusion vers l'avant
-            x (1 - d2^2 / (0,3 portee)^2)^2
+    cj    = 0,533 contre x wb x |n_section.xy| x max(cb, 0) x att3D       // v15
+            cb = (n_section.z (n2 . d.xy) + |n_section.xy| |z|) / dist      // n2 : direction 2D lissee
+            = le cosinus de la lampe de face, sur la normale de la section BASCULEE (angle au
+              spectateur theta -> 90 - theta) et la lampe en miroir devant le plan (|z|)
     contour sombre (luminance de base < 0,16) : pas de cj, e = min(diff, 1 palier)
     lumiere = ambiance + couleur x intensite x palier(min(diff + cj, 1))   // un plafond, un palier
     Tout est MULTIPLIE par la couleur de base du neutre : aucune part additive de la lampe.
@@ -245,6 +245,17 @@ contre (1,5) = 1,0 menait les rasantes au palier maximal : plan au maximum, vois
 Rasance lineaire (1 - z) / 0,5 (inclinee 0,48) et coefficient 0,467 (contre-jour <= 0,7 par defaut,
 sous le palier maximal) : rasante = palier haut, inclinee voisine = palier intermediaire. Test
 « adoucissement » (voisins interieurs d'un pixel au palier max qui tombent a l'ambiance) : 1-13 % -> 0 %.
+v15 (« prendre ce que fait la profondeur a +49 et l'appliquer proprement ») : a +49 (lampe devant),
+face > inclinee > rasante s'etagent par le seul cosinus N.L. Le contre-jour reprend ce cosinus tel
+quel sur la normale basculee (la rasante tournee vers la lampe devient la « face » : 0,93 ; inclinee
+0,64 ; face 0) ; x |n.xy| pour que la face, sans direction, reste a l'ombre ; attenuation = celle de
+la lampe de face. Supprimes : rasance lineaire, puissance ^3, sc^2, rayon 0,3 portee, occultation et
+melange de direction pres du pixel (cb est continu de lui-meme, |z| continu en 0). Mesures a -49
+(4 positions, paliers 0/1/2/3, Agarica f0) : +49 [46,14,26,14] moyenne 1,08 ; v14 [79,13,8,1] 0,32 ;
+v15 [51,28,12,9] 0,79 (crapaud : +49 1,33, v14 0,16, v15 0,46). Saut max entre sections voisines :
++49 en a deja de 3 paliers (11-20 % des frontieres sautent >= 2, face eclairee contre inclinee
+dos a la lampe) ; v15 : max 2-3, 1-9 % des frontieres (le pendant de +49 : rasante eclairee contre
+face). Anneau lampe cachee : autant allume que l'interieur (pas de bande).
 Lampe devant (z >= 15) : wb = 0, c'est exactement N.L x attenuation, comme avant. Continuite
 (variation moyenne avant paliers d'un pas au suivant, « pic isole » = ecart au voisinage),
 v10 -> v11 : Agarica, balayage de profondeur lampe a gauche 0,031 -> 0,001, lampe traversant la

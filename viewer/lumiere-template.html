@@ -268,8 +268,8 @@ float contreJourDoux(vec3 n, vec2 t, vec2 lp, vec2 ts) {
 //   ne   = normalize(mix(normale de la section, normale lissee 5x5, wb))
 //   diff = max((ne . L + w) / (1 + w), 0) x attenuation, L = vraie direction 3D (z negatif compris),
 //          w = 0,5 wb (« wrap » : les rasantes tournees vers une lampe derriere recoivent un peu)
-//   cj   = 0,67 contre x wb x rasance x direction x visibilite x attenuation 2D (voir contreJourDoux),
-//          avec « lampe cachee » = occultation douce (distance signee de la lampe a la silhouette)
+//   cj   = v15 : 0,533 contre x wb x |n.xy| x max(cos(normale basculee, lampe en miroir), 0) x att
+//          (meme cosinus que la lampe de face ; voir eclairage()). occ n'est plus utilise par cj.
 //   e    = min(diff + cj, 1)  ->  palier(e), un seul plafond, un seul palier
 float occultation(vec2 lp) {
   vec2 q = floor(lp);
@@ -297,32 +297,18 @@ float eclairage(vec3 n, vec2 ts, vec2 t, vec2 lp, float occ, float lumBase) {
   float cj = 0.0;
   float m = length(ne.xy);
   if (wb > 0.0 && m > 0.001) {
-    // rasance de la SECTION (plans de la forme des parties) et non une distance au bord :
-    // plus d'anneau d'epaisseur constante
-    // v14 : rasance lineaire (et non smoothstep(0,2 ; 0,6)) : face (z = 1) 0, inclinee (z 0,76) 0,48,
-    // rasante (z 0,37) 1 -> la section inclinee voisine porte un palier intermediaire (adoucissement)
-    float ras = clamp((1.0 - n.z) / 0.5, 0.0, 1.0);
-    vec2 dl = d.xy;
-    float d2 = length(dl);
-    float dd = dot(ne.xy / m, dl / max(d2, 0.001));
-    // v13 : max() et non mix() : quand la lampe franchit le bord (occ ~ 0,5), mix(dd, -dd, occ)
-    // passait par 0 (dir = 0,125) et le cote proche s'eteignait juste a la sortie ; ici le bord
-    // tourne vers la lampe (dd > 0) garde tout son poids, celui qui lui tourne le dos (dd < 0)
-    // n'en recoit que si la lampe est cachee (-dd x occ) : monotone et continu
-    float dir = 0.5 + 0.5 * max(dd, -dd * occ);
-    dir = dir * dir * dir;
-    // v13 : lampe juste derriere le pixel (distance 2D faible devant |z|) : la lumiere arrive par
-    // derriere, la direction 2D compte peu (sinon le pixel s'eteint au moment ou la lampe passe
-    // a sa hauteur) ; pleine dependance a la direction au-dela de 1,25 |z|
-    dir = mix(1.0, dir, smoothstep(0.0, max(1.25 * abs(uHauteur), 0.5), d2));
-    // diffusion vers l'avant : forte pres de la lampe en 2D, decroit en s'eloignant (lampe cachee
-    // au centre : le tour ne s'allume pas partout avec la meme force)
-    float sc = abs(uHauteur) / sqrt(d2 * d2 + uHauteur * uHauteur + 0.0001);
-    float R = max(uPortee * 0.3, 4.0);
-    float a2 = clamp(1.0 - (d2 * d2) / (R * R), 0.0, 1.0);
-    // v14 : 0,467 (et non 0,67) : contre-jour au plus 0,7 avec le reglage par defaut (1,5), donc
-    // sous le palier maximal ; il ne l'atteint qu'avec Contre-jour pousse (> 2,1)
-    cj = 0.467 * uContre * wb * ras * dir * sc * sc * a2 * a2;
+    // v15 : la MEME reponse en cosinus que la lampe de face, appliquee au bord. Normale de la
+    // section basculee (angle au spectateur theta -> 90 - theta : la rasante devient « face », la
+    // face devient « rasante »), direction 2D lissee (ne), lampe en miroir devant le plan (|z|) :
+    //   cb = (n.z (ne2 . d.xy) + |n.xy| |z|) / dist
+    // rasante tournee vers la lampe = palier haut, inclinee = intermediaire, puis ombre, comme la
+    // face / inclinee / rasante a +49. x |n.xy| de la section : la face (sans direction) reste a
+    // l'ombre. Attenuation = celle de la lampe de face. Plus de puissance, seuil ni occultation :
+    // continu en x, y et z (cb ne depend que de la position de la lampe, |z| continu en 0).
+    float ms = length(n.xy);
+    float cb = (n.z * dot(ne.xy / m, d.xy) + ms * abs(uHauteur)) / dist;
+    // 0,533 x contre (1,5 par defaut) = 0,8 : intensite moyenne a -49 sous celle de +49
+    cj = 0.533 * uContre * wb * ms * max(cb, 0.0) * att;
   }
   return min(diff + cj, 1.0);
 }

@@ -175,3 +175,9 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
 - 2026-11-17 - crapaud « effet bande sur les cotes » : un terme base sur la distance au bord fait
   toujours un anneau d'epaisseur constante ; la rasance doit venir des sections. Verifier que le
   contour epais est bien detecte sombre (#212121 = luminance 0,13).
+- 2026-11-17 - contre-jour v15 « prendre ce que fait la profondeur a 49 et l'appliquer proprement » :
+  pour qu'un effet derriere ressemble a l'effet devant, reprendre la MEME fonction (cosinus N.L)
+  sur une orientation transformee (normale basculee theta -> 90 - theta, lampe en miroir |z|)
+  plutot qu'empiler puissances, seuils et rayons ad hoc ; le degrade entre sections vient alors
+  tout seul. Mesurer la reference avant de fixer un objectif : +49 a deja des sauts de 3 paliers
+  entre sections voisines, « sans saut brutal » est une impression d'etagement, pas un saut max 1.
