@@ -764,7 +764,7 @@ def peint_vers_jeu(im, echelle, ncol=32):
 
 
 # ---------------------------------------------------------------- geometrie (contre-jour)
-GEO_PAD = 6        # marge autour du sprite dans la texture de geometrie (halo)
+GEO_PAD = 10       # marge autour du sprite dans la texture de geometrie (distance de la lampe a la silhouette)
 GEO_TROU_MIN = 12  # trou transparent enferme : exterieur seulement a partir de 12 px
 
 

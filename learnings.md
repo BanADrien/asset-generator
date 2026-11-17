@@ -169,3 +169,6 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
 - 2026-11-17 - contre-jour v9 « pas naturel, comme si la logique etait forcee » : des conditions
   tout-ou-rien empilees sur des normales quantifiees donnent des taches eparses. Faire UN modele
   de lumiere continu (normale lissee, fonctions douces) et quantifier une seule fois a la fin.
+- 2026-11-17 - v10 « pas fluide, comme si c'etait un mode different » : une formule devant et
+  une derriere = bascule visible. UNE formule pour toutes les positions de lampe, termes ponderes
+  par des fonctions lisses de la position (smoothstep sur z, occultation douce), un seul palier.

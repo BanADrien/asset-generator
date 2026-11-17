@@ -202,25 +202,31 @@ classe, apres `super.onRender(scene, camera)` :
     scene.sys.lights.getLights(camera).forEach((l, i) =>
       this.set1f(`uLightZ[${i}]`, l.profondeur ?? 0.015));   // negatif = derriere ; meme ordre que Phaser
 
-Lumiere derriere (z < 0) : PAS de lisere, de bande, de halo ni de couleur de lampe plaquee
-(refuses par l'utilisateur), et PAS de regles tout-ou-rien empilees (v9 : rasante oui/non, sens
-oui/non, ouverture < 4 px oui/non sur des normales a 17 directions -> taches eparses, « logique
-forcee »). Modele v10 : UN calcul continu, quantifie une seule fois a la fin.
+Lumiere derriere : PAS de lisere, de bande, de halo ni de couleur de lampe plaquee, PAS de regles
+tout-ou-rien, et PAS deux formules devant / derriere (v10 : bascule sensible quand la lampe passe
+z = 0 ou entre dans la silhouette). Modele v11 : UNE formule pour toutes les positions de la lampe,
+sans branche sur z ni sur « lampe cachee » ; seuls les paliers font des marches.
 
-    ns    = normale LISSEE (moyenne 5x5 des normales opaques) : varie en douceur le long du contour
-    face  = max(ns . L, 0) x attenuation             // lumiere directe, sans paliers
-    ras   = smoothstep(0,2 ; 0,6 ; 1 - ns.z)          // face 0, inclinee ~0, rasante ~1
-    dir   = (0,5 + 0,5 mix(n2.u, -n2.u, h))^3          // u = pixel -> lampe ; h = lampe cachee (0..1)
-    vis   = 1 - smoothstep(1 ; 5 ; profondeur depuis le bord exterieur)   // texture de geometrie
-    att   = (1 - d2^2 / (0,3 portee)^2)^2            // distance 2D seulement
-    cj    = min(contre x ras x dir x vis x att x clamp(-z / 10), 1) x 0,67
-    lumiere = ambiance + couleur x intensite x palier(min(face + cj, 1))   // un seul palier
+    wb    = smoothstep(+15, -15, z)                  // poids « derriere », progressif autour de z = 0
+    ne    = normalize(mix(n_section, n_lissee_5x5, wb))
+    L     = direction 3D vraie vers la lampe (z negatif compris)
+    diff  = max((ne . L + w) / (1 + w), 0) x att3D,  w = 0,5 wb      // « wrap » doux
+    occ   = smoothstep(-8, 6, distance signee lampe/silhouette)       // lampe cachee, en douceur
+            (dedans : profondeur ; dehors : -distance ; texture de geometrie, marge 10 px)
+    cj    = 0,67 contre x wb x smoothstep(0,2 ; 0,6 ; 1 - ne.z)
+            x (0,5 + 0,5 mix(n2.u, -n2.u, occ))^3 x (1 - smoothstep(1 ; 5 ; profondeur du pixel))
+            x (1 - d2^2 / (0,3 portee)^2)^2
+    lumiere = ambiance + couleur x intensite x palier(min(diff + cj, 1))   // un plafond, un palier
 
-Les sections restent la base de la lumiere de face (z > 0, inchange) et des paliers. Taches
-eclairees separees (composantes connexes au-dessus de l'ambiance, portee 500, z = -20), v9 -> v10 :
-Agarica centre 12 -> 7, bas 7 -> 8 (jambes separees), gauche 6 -> 2 ; crapaud centre 13 -> 7,
-bas 10 -> 6, gauche 16 -> 6 (total 64 -> 36). Part eclairee comparable (Agarica centre 21 -> 25 %).
-La page garde temporairement une case « Contre-jour v9 (ancien) » pour comparer.
+Lampe devant (z >= 15) : wb = 0, c'est exactement N.L x attenuation, comme avant. Continuite
+(variation moyenne avant paliers d'un pas au suivant, « pic isole » = ecart au voisinage),
+v10 -> v11 : Agarica, balayage de profondeur lampe a gauche 0,031 -> 0,001, lampe traversant la
+silhouette a z = -20 0,109 -> 0,021 ; crapaud 0,020 -> 0,002 et 0,054 -> 0,010. La page garde
+temporairement une case « Ancienne version (v10) ».
+
+Dans Phaser (pipeline personnalise) : meme fonction par lampe ; uniforms par lampe : position,
+profondeur (uLightZ), occultation precalculee cote JS (lecture de la texture de geometrie a la
+position de la lampe) ; textures : normales + geometrie. Pas de `if` sur z dans le shader.
 
 Contour : aucun traitement special du bord dans le shader. Dans sections.py, chaque pixel qui
 touche le vide HERITE de la section des pixels interieurs voisins (heriter_bord) : le contour fait

@@ -94,7 +94,7 @@
         <input type="range" id="hauteur" min="-60" max="60" step="1" value="8"></label>
       <label class="r" title="Lumiere derriere : intensite. Les SECTIONS rasantes du bord tournees dans le bon sens s'allument (couleur de la matiere x lumiere, memes paliers) ; la portee regle jusqu'ou la lumiere gagne le long du contour et vers l'interieur.">Contre-jour <output id="o-contre"></output>
         <input type="range" id="contre" min="0" max="3" step="0.1" value="1.5"></label>
-      <label class="c"><input type="checkbox" id="ancien"> Contre-jour v9 (ancien, pour comparer)</label>
+      <label class="c"><input type="checkbox" id="ancien"> Ancienne version (v10), pour comparer</label>
       <label class="r">Intensite <output id="o-intensite"></output>
         <input type="range" id="intensite" min="0" max="2" step="0.05" value="1"></label>
       <label class="r">Portee <output id="o-portee"></output>
@@ -159,7 +159,7 @@ void main() {
 precision highp float;
 uniform sampler2D uNeutre, uNormales, uOrigine, uSections, uGeo;
 uniform float uPad;        // marge de la texture de geometrie (px du sprite)
-uniform float uAncien;     // 1 = contre-jour v9 (regles tout-ou-rien), pour comparer
+uniform float uAncien;     // 1 = ancienne version v10 (deux formules devant / derriere), pour comparer
 uniform vec2 uTaille;      // taille du sprite (px du sprite)
 uniform vec2 uCanvas;      // taille du canvas (px ecran)
 uniform vec2 uOrigineEcr;  // coin haut-gauche du sprite (px ecran, y vers le bas)
@@ -215,41 +215,6 @@ float cache(vec2 lp) {
   return clamp(geoAt(q).r / 3.0, 0.0, 1.0);
 }
 
-// vrai contre-jour : seules les surfaces presque perpendiculaires au regard (rasantes) qui donnent
-// sur le vide autour de la silhouette attrapent la lumiere de derriere ; tout ce qui fait face au
-// spectateur reste dans l'ombre, quelle que soit la portee.
-//   ras   = clamp((0,55 - n.z) / 0,15) : rasante (z 0,37) -> 1, inclinee (0,76) et face -> 0
-//   sens  = orientation 2D (vers la lampe dehors, a l'oppose cachee), rendue franche (+-45 deg)
-//   ouv   = la section donne sur le vide : en partant du pixel le long de sa normale 2D, un pixel
-//           vide a moins de 4 px (une rasante tournee vers une autre partie du corps reste noire)
-//   att   = portee : distance 2D lampe-pixel seulement (jusqu'ou, autour de la silhouette)
-//   plafond 0,67 : le contre-jour reste plus faible qu'un eclairage de face
-float contreJour(vec3 n, vec2 t, vec2 lp, vec2 ts) {
-  float ras = clamp((0.55 - n.z) / 0.15, 0.0, 1.0);
-  float m = length(n.xy);
-  if (ras <= 0.0 || m < 0.05) return 0.0;
-  vec2 dl = vec2(lp.x - t.x, t.y - lp.y);
-  float d2 = length(dl);
-  vec2 n2 = n.xy / m;
-  vec2 u = dl / max(d2, 0.001);
-  float h = cache(lp);
-  float sens = mix(max(dot(n2, u), 0.0), max(dot(n2, -u), 0.0), h);
-  sens = clamp((sens - 0.5) / 0.4, 0.0, 1.0);
-  if (sens <= 0.0) return 0.0;
-  // ouverture sur le vide (dans le repere de la texture : y vers le bas, x en miroir si retourne)
-  vec2 dir = vec2(uFlip > 0.5 ? -n2.x : n2.x, -n2.y);
-  float ouv = 0.0;
-  for (int i = 1; i <= 4; i++) {
-    vec2 q = floor(ts + 0.5 + dir * float(i));
-    if (q.x < 0.0 || q.y < 0.0 || q.x >= uTaille.x || q.y >= uTaille.y) { ouv = 1.0; break; }
-    if (texture2D(uNeutre, (q + 0.5) / uTaille).a < 0.5) { ouv = 1.0; break; }
-  }
-  float R = max(uPortee * 0.3, 4.0);
-  float att = clamp(1.0 - (d2 * d2) / (R * R), 0.0, 1.0);
-  float prof = clamp(-uHauteur / 10.0, 0.0, 1.0);   // continu avec la lampe dans le plan
-  return min(uContre * ras * sens * ouv * att * prof, 1.0) * 0.67;
-}
-
 // ---- contre-jour v10 : UN modele continu, quantifie une seule fois a la fin
 // normale lissee (moyenne 5x5 des normales opaques) : l'orientation varie en douceur le long du
 // contour au lieu de sauter d'une section a l'autre ; les sections restent pour la lumiere de face
@@ -297,6 +262,50 @@ float contreJourDoux(vec3 n, vec2 t, vec2 lp, vec2 ts) {
   return min(uContre * ras * dir * vis * att * prof, 1.0) * 0.67;
 }
 
+// ---- v11 : UN SEUL modele d'eclairage, sans branche sur la profondeur ni sur « lampe cachee »,
+// continu dans les 3 dimensions de la position de la lampe ; seuls les paliers font des marches.
+//   wb   = smoothstep(+15, -15, z) : poids « derriere », passe de 0 a 1 en douceur autour de z = 0
+//   ne   = normalize(mix(normale de la section, normale lissee 5x5, wb))
+//   diff = max((ne . L + w) / (1 + w), 0) x attenuation, L = vraie direction 3D (z negatif compris),
+//          w = 0,5 wb (« wrap » : les rasantes tournees vers une lampe derriere recoivent un peu)
+//   cj   = 0,67 contre x wb x rasance x direction x visibilite x attenuation 2D (voir contreJourDoux),
+//          avec « lampe cachee » = occultation douce (distance signee de la lampe a la silhouette)
+//   e    = min(diff + cj, 1)  ->  palier(e), un seul plafond, un seul palier
+float occultation(vec2 lp) {
+  vec2 q = floor(lp);
+  if (uFlip > 0.5) q.x = uTaille.x - 1.0 - q.x;
+  if (q.x < -uPad || q.y < -uPad || q.x >= uTaille.x + uPad || q.y >= uTaille.y + uPad) return 0.0;
+  vec3 g = geoAt(q);
+  float sd = g.r > 0.5 ? g.r : -g.b;     // profondeur dedans, distance dehors
+  return smoothstep(-8.0, 6.0, sd);
+}
+
+float eclairage(vec3 n, vec2 ts, vec2 t, vec2 lp, float occ) {
+  float wb = smoothstep(15.0, -15.0, uHauteur);
+  vec3 ne = n;
+  if (wb > 0.0) ne = normalize(mix(n, normaleLisse(ts), wb));   // wb = 0 : rien a melanger
+  vec3 d = vec3(lp.x - t.x, t.y - lp.y, uHauteur);
+  float dist = max(length(d), 0.001);
+  float att = clamp(1.0 - (dist * dist) / (uPortee * uPortee), 0.0, 1.0);
+  float w = 0.5 * wb;
+  float diff = max((dot(ne, d / dist) + w) / (1.0 + w), 0.0) * att;
+  float cj = 0.0;
+  float m = length(ne.xy);
+  if (wb > 0.0 && m > 0.001) {
+    float ras = smoothstep(0.2, 0.6, 1.0 - ne.z);
+    vec2 dl = d.xy;
+    float d2 = length(dl);
+    float dd = dot(ne.xy / m, dl / max(d2, 0.001));
+    float dir = 0.5 + 0.5 * mix(dd, -dd, occ);
+    dir = dir * dir * dir;
+    float vis = 1.0 - smoothstep(1.0, 5.0, geoAt(ts).r);
+    float R = max(uPortee * 0.3, 4.0);
+    float a2 = clamp(1.0 - (d2 * d2) / (R * R), 0.0, 1.0);
+    cj = 0.67 * uContre * wb * ras * dir * vis * a2 * a2;
+  }
+  return min(diff + cj, 1.0);
+}
+
 void main() {
   vec2 fc = vec2(gl_FragCoord.x, uCanvas.y - gl_FragCoord.y);
   if (uMode > 8.5) {
@@ -341,25 +350,21 @@ void main() {
     vec2 tc = t + 0.5;
     vec2 l1 = (uL1 - uOrigineEcr) / uEchelle, l2 = (uL2 - uOrigineEcr) / uEchelle;
     vec3 l;
-    if (uHauteur >= 0.0) {
+    if (uAncien < 0.5) {
+      // v11 : modele unique (contour noir = sa couleur sombre x l'eclairage de sa section)
+      l = vec3(uAmbiante) + uC1 * uIntensite * palier(eclairage(n, ts, tc, l1, occultation(l1)));
+      if (uN > 1.5) l += uC2 * uIntensite * palier(eclairage(n, ts, tc, l2, occultation(l2)));
+    } else if (uHauteur >= 0.0) {
+      // v10 (pour comparer) : formule de face...
       l = vec3(uAmbiante) + uC1 * uIntensite * recu(n, tc, l1);
       if (uN > 1.5) l += uC2 * uIntensite * recu(n, tc, l2);
-      c = base.rgb * l;
     } else {
-      if (uAncien > 0.5) {
-        // v9 : regles tout-ou-rien (gardee pour comparer)
-        l = vec3(uAmbiante) + uC1 * uIntensite * palier(contreJour(n, tc, l1, ts));
-        if (uN > 1.5) l += uC2 * uIntensite * palier(contreJour(n, tc, l2, ts));
-      } else {
-        // v10 : lumiere de face + contre-jour, continus (normale lissee), puis UN seul palier
-        vec3 ns = normaleLisse(ts);
-        l = vec3(uAmbiante) + uC1 * uIntensite * palier(min(lumiereBrute(ns, tc, l1) + contreJourDoux(ns, tc, l1, ts), 1.0));
-        if (uN > 1.5) l += uC2 * uIntensite * palier(min(lumiereBrute(ns, tc, l2) + contreJourDoux(ns, tc, l2, ts), 1.0));
-      }
-      c = base.rgb * l;
-      // contour noir : sa couleur sombre x l'eclairage de SA section (heritee de la section qu'il
-      // borde, sections.py) : toujours plus sombre qu'elle, aucun traitement special du bord
+      // ...et formule de contre-jour separee
+      vec3 ns = normaleLisse(ts);
+      l = vec3(uAmbiante) + uC1 * uIntensite * palier(min(lumiereBrute(ns, tc, l1) + contreJourDoux(ns, tc, l1, ts), 1.0));
+      if (uN > 1.5) l += uC2 * uIntensite * palier(min(lumiereBrute(ns, tc, l2) + contreJourDoux(ns, tc, l2, ts), 1.0));
     }
+    c = base.rgb * l;
   }
   gl_FragColor = vec4(c, 1.0);
 }`;
