@@ -90,8 +90,8 @@
         <div class="boutons" id="couleurs1"></div>
         <input type="color" id="couleur1" value="#ffb35c" aria-label="Couleur de la lumiere">
       </div>
-      <label class="r">Hauteur <output id="o-hauteur"></output>
-        <input type="range" id="hauteur" min="2" max="120" step="1" value="40"></label>
+      <label class="r" title="Distance de la lumiere devant le plan du sprite. Faible = lumiere dans la scene, a cote du personnage : le cote tourne vers elle s'eclaire le plus.">Profondeur (devant le sprite) <output id="o-hauteur"></output>
+        <input type="range" id="hauteur" min="1" max="80" step="1" value="8"></label>
       <label class="r">Intensite <output id="o-intensite"></output>
         <input type="range" id="intensite" min="0" max="2" step="0.05" value="1"></label>
       <label class="r">Portee <output id="o-portee"></output>
@@ -161,7 +161,7 @@ uniform vec2 uOrigineEcr;  // coin haut-gauche du sprite (px ecran, y vers le ba
 uniform float uEchelle;    // px ecran par px du sprite (entier)
 uniform float uMode;       // 0 eclaire, 1 origine, 2 sections, 3 normales, 9 disques des lumieres
 uniform float uPaliers;    // 0 = lisse
-uniform float uAmbiante, uHauteur, uPortee, uIntensite;
+uniform float uAmbiante, uHauteur, uPortee, uIntensite;  // uHauteur = profondeur de la lumiere devant le plan (px du sprite)
 uniform vec2 uL1, uL2;     // lumieres en px ecran
 uniform vec3 uC1, uC2;     // couleurs
 uniform float uN;          // nombre de lumieres

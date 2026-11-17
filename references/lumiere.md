@@ -129,7 +129,8 @@ Meme famille de teinte = meme direction (clair = incline, fonce = rasant).
 « tous cote a cote » : meme echelle, meme lumiere, poses sur le meme sol, tailles relatives du
 jeu). Autonome, double-clic, Chrome : le sprite au centre a echelle entiere,
 lumiere a glisser (souris ou doigt), WebGL sans bibliotheque. Reglages : hauteur, intensite,
-portee, ambiante, couleur (torche, lune, blanc), paliers 2-5 ou lisse, 2e lumiere, affichage du
+portee, ambiante, profondeur de la lumiere devant le plan (8 px par defaut ; trop grande, le
+sommet des formes s'assombrit quand la lampe est proche), couleur (torche, lune, blanc), paliers 2-5 ou lisse, 2e lumiere, affichage du
 sprite d'origine / des sections / des normales a la place. Adresse : `#l=0.1,0.3` (lumiere au
 depart, fraction de la boite affichee), `&a=2` (asset), `&tous`, `&m=2` (affichage).
 
@@ -149,7 +150,19 @@ Light2D existe en 3.80 : carte de normales jointe a la texture, lumieres de scen
 
 Points a savoir en 3.80 :
 - Le jeu filtre en lineaire par defaut : forcer NEAREST sur ces textures (setFilter ci-dessus).
-- La hauteur de lumiere est fixe dans le shader Light2D (z = 0,1) ; pas de reglage par lampe.
+- PROFONDEUR de la lumiere : Light2D la fixe a z = 0,1 x petit cote de l'ecran, soit ~54 px du
+  jeu en 960x540 : la lampe est loin DEVANT le plan du sprite. Alors une lampe placee juste
+  au-dessus d'une tete eclaire mieux la face (normales vers le spectateur) que le sommet (normales
+  rasantes vers le haut) : le haut des cheveux tombe dans un palier sombre (bug constate sur la
+  page de test avec l'ancienne valeur 40 px : sommet 0,51 contre 0,59 au milieu des cheveux ;
+  avec 8 px : 0,67 contre 0,41). Pour des torches DANS la scene, prendre une profondeur faible :
+  dans la copie du shader, remplacer le 0,1 de la ligne
+  `vec3 lightDir = vec3((light.position.xy / res) - (gl_FragCoord.xy / res), 0.1);`
+  par ~0,015 (~8 px a 540 px de haut). La page de test regle la meme chose (« Profondeur »,
+  8 px par defaut).
+- Convention verifiee : normale G = y vers le HAUT ; Light2D retourne y de la lumiere
+  (hauteur - y) et travaille en gl_FragCoord (y vers le haut) : les cartes livrees sont dans le
+  bon sens. Controle : demi-sphere synthetique, bord du haut decode (x, y, z) = (-0,08, +0,75, +0,45).
 - `flipX` ne retourne pas les normales (le rouge n'est pas inverse) : un sprite retourne est
   eclaire du mauvais cote. Deux solutions : textures `--gauche` (`*.neutre-gauche.png` +
   `*.normales-gauche.png`, autre cle, on change de texture au lieu de flipX), ou mieux le
