@@ -213,7 +213,7 @@ sans branche sur z ni sur « lampe cachee » ; seuls les paliers font des marche
     diff  = max((ne . L + w) / (1 + w), 0) x att3D,  w = 0,5 wb      // « wrap » doux
     occ   = smoothstep(-8, 6, distance signee lampe/silhouette)       // lampe cachee, en douceur
             (dedans : profondeur ; dehors : -distance ; texture de geometrie, marge 10 px)
-    cj    = 0,67 contre x wb x smoothstep(0,2 ; 0,6 ; 1 - n_section.z)     // plans rasants des SECTIONS
+    cj    = 0,467 contre x wb x clamp((1 - n_section.z) / 0,5)            // plans des SECTIONS (v14)
             x (0,5 + 0,5 max(n2.u, -n2.u x occ))^3                         // n2 : normale lissee
             x sc^2, sc = |z| / sqrt(d2^2 + z^2)                             // diffusion vers l'avant
             x (1 - d2^2 / (0,3 portee)^2)^2
@@ -239,6 +239,12 @@ Batterie de tests (Agarica f0 et f3, crapaud, loup, grizzly ; z = -40, -20, -10,
 220 et 800) : redescente maximale en approchant un cote 0,014 (v12 : jusqu'a 0,255), symetrie
 demi-sphere exacte, continuite profondeur et horizontale inchangees ou meilleures, anneau 5-21 %
 (v12 5-18 %), lumiere devant identique a v12, contour sombre <= 1 palier.
+v14 (« certaines lumieres brillent a fond sans section d'adoucissement ») : la rasance
+smoothstep(0,2 ; 0,6) donnait 1 aux rasantes et 0,03 aux inclinees (z 0,76), et le coefficient 0,67 x
+contre (1,5) = 1,0 menait les rasantes au palier maximal : plan au maximum, voisin direct a l'ambiance.
+Rasance lineaire (1 - z) / 0,5 (inclinee 0,48) et coefficient 0,467 (contre-jour <= 0,7 par defaut,
+sous le palier maximal) : rasante = palier haut, inclinee voisine = palier intermediaire. Test
+« adoucissement » (voisins interieurs d'un pixel au palier max qui tombent a l'ambiance) : 1-13 % -> 0 %.
 Lampe devant (z >= 15) : wb = 0, c'est exactement N.L x attenuation, comme avant. Continuite
 (variation moyenne avant paliers d'un pas au suivant, « pic isole » = ecart au voisinage),
 v10 -> v11 : Agarica, balayage de profondeur lampe a gauche 0,031 -> 0,001, lampe traversant la

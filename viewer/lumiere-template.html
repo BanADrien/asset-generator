@@ -299,7 +299,9 @@ float eclairage(vec3 n, vec2 ts, vec2 t, vec2 lp, float occ, float lumBase) {
   if (wb > 0.0 && m > 0.001) {
     // rasance de la SECTION (plans de la forme des parties) et non une distance au bord :
     // plus d'anneau d'epaisseur constante
-    float ras = smoothstep(0.2, 0.6, 1.0 - n.z);
+    // v14 : rasance lineaire (et non smoothstep(0,2 ; 0,6)) : face (z = 1) 0, inclinee (z 0,76) 0,48,
+    // rasante (z 0,37) 1 -> la section inclinee voisine porte un palier intermediaire (adoucissement)
+    float ras = clamp((1.0 - n.z) / 0.5, 0.0, 1.0);
     vec2 dl = d.xy;
     float d2 = length(dl);
     float dd = dot(ne.xy / m, dl / max(d2, 0.001));
@@ -318,7 +320,9 @@ float eclairage(vec3 n, vec2 ts, vec2 t, vec2 lp, float occ, float lumBase) {
     float sc = abs(uHauteur) / sqrt(d2 * d2 + uHauteur * uHauteur + 0.0001);
     float R = max(uPortee * 0.3, 4.0);
     float a2 = clamp(1.0 - (d2 * d2) / (R * R), 0.0, 1.0);
-    cj = 0.67 * uContre * wb * ras * dir * sc * sc * a2 * a2;
+    // v14 : 0,467 (et non 0,67) : contre-jour au plus 0,7 avec le reglage par defaut (1,5), donc
+    // sous le palier maximal ; il ne l'atteint qu'avec Contre-jour pousse (> 2,1)
+    cj = 0.467 * uContre * wb * ras * dir * sc * sc * a2 * a2;
   }
   return min(diff + cj, 1.0);
 }
