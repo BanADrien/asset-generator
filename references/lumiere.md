@@ -129,8 +129,10 @@ Meme famille de teinte = meme direction (clair = incline, fonce = rasant).
 « tous cote a cote » : meme echelle, meme lumiere, poses sur le meme sol, tailles relatives du
 jeu). Autonome, double-clic, Chrome : le sprite au centre a echelle entiere,
 lumiere a glisser (souris ou doigt), WebGL sans bibliotheque. Reglages : hauteur, intensite,
-portee, ambiante, profondeur de la lumiere devant le plan (8 px par defaut ; trop grande, le
-sommet des formes s'assombrit quand la lampe est proche), couleur (torche, lune, blanc), paliers 2-5 ou lisse, 2e lumiere, affichage du
+portee, ambiante, profondeur de la lumiere (-60 derriere a +60 devant, 8 par defaut ; trop
+grande devant, le sommet des formes s'assombrit quand la lampe est proche ; derriere : contre-jour,
+point lumineux cache par la silhouette avec un halo, reglage « Contre-jour » du lisere), couleur
+(torche, lune, blanc), paliers 2-5 ou lisse, 2e lumiere, affichage du
 sprite d'origine / des sections / des normales a la place. Adresse : `#l=0.1,0.3` (lumiere au
 depart, fraction de la boite affichee), `&a=2` (asset), `&tous`, `&m=2` (affichage).
 
@@ -190,6 +192,23 @@ puis :
     crapaud.setPipeline('Paliers');
 
 C'est la meme formule que la page de test (paliers = floor(e x N) / (N - 1)).
+
+### Lumiere derriere le sprite (contre-jour) dans le meme pipeline
+Light2D n'a pas de z negatif (0,1 fixe pour toutes les lampes). Dans la copie du shader :
+`uniform float uLightZ[kMaxLights];` et `vec3 lightDir = vec3(... , uLightZ[index]);` ; dans la
+classe, apres `super.onRender(scene, camera)` :
+
+    scene.sys.lights.getLights(camera).forEach((l, i) =>
+      this.set1f(`uLightZ[${i}]`, l.profondeur ?? 0.015));   // negatif = derriere ; meme ordre que Phaser
+
+Lumiere derriere : le produit scalaire (sans valeur absolue) eteint les faces tournees vers l'avant.
+Le lisere vient du bord : les normales rasantes quantifiees (z ~0,37) captent peu une lampe
+derriere ; la page ajoute donc, seulement sur le bord de la silhouette (pixel vide a 1-2 px : 9-25
+lectures de l'alpha, il faut un uniform de taille de texel) et la ou la normale pointe vers la
+lampe dans le plan, `lisere = contre x bord x max(0, n.xy . L.xy) x clamp(-z / 10, 0, 1)`, puis
+`diff = max(diff, lisere)` avant les paliers. Mesures (lampe a gauche, 8 px du bord, z = -20,
+contre-jour 0,8) : demi-sphere bord gauche 0,14, interieur 0,00, bord droit 0,00 ; Agarica bord
+gauche 0,27, interieur 0,04, bord droit 0,03. Sans ce lisere la demi-sphere restait entierement noire.
 
 ### Sprite retourne (flipX) : inverser normal.x dans le meme pipeline
 Dans la copie du shader, remplacer la ligne du calcul de `normal` par :

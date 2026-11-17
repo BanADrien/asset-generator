@@ -90,8 +90,10 @@
         <div class="boutons" id="couleurs1"></div>
         <input type="color" id="couleur1" value="#ffb35c" aria-label="Couleur de la lumiere">
       </div>
-      <label class="r" title="Distance de la lumiere devant le plan du sprite. Faible = lumiere dans la scene, a cote du personnage : le cote tourne vers elle s'eclaire le plus.">Profondeur (devant le sprite) <output id="o-hauteur"></output>
-        <input type="range" id="hauteur" min="1" max="80" step="1" value="8"></label>
+      <label class="r" title="Position de la lumiere par rapport au plan du sprite : negatif = derriere (contre-jour, seuls les bords tournes vers elle s'allument), 0 = dans le plan (rasant), positif = devant.">Profondeur (&minus; derriere / + devant) <output id="o-hauteur"></output>
+        <input type="range" id="hauteur" min="-60" max="60" step="1" value="8"></label>
+      <label class="r" title="Lisere de contre-jour quand la lumiere est derriere : seulement sur le bord de la silhouette tourne vers elle.">Contre-jour <output id="o-contre"></output>
+        <input type="range" id="contre" min="0" max="1.5" step="0.1" value="0.8"></label>
       <label class="r">Intensite <output id="o-intensite"></output>
         <input type="range" id="intensite" min="0" max="2" step="0.05" value="1"></label>
       <label class="r">Portee <output id="o-portee"></output>
@@ -166,6 +168,8 @@ uniform vec2 uL1, uL2;     // lumieres en px ecran
 uniform vec3 uC1, uC2;     // couleurs
 uniform float uN;          // nombre de lumieres
 uniform float uRayonDisque;
+uniform float uContre;     // renfort du lisere quand la lumiere est derriere (z < 0)
+uniform float uDisques;    // passe des disques : 0 = lumieres derriere (avant les sprites), 1 = devant
 uniform float uFlip;       // 1 = sprite retourne : image en miroir ET normal.x inverse (correction du flipX)
 
 float palier(float v) {
@@ -173,11 +177,36 @@ float palier(float v) {
   return min(floor(v * uPaliers), uPaliers - 1.0) / (uPaliers - 1.0);
 }
 
-vec3 recu(vec3 n, vec2 t, vec2 lp) {
+// bord de silhouette : 1 si un pixel vide est a 1 px, 0,6 a 2 px, 0 a l'interieur
+float bordSilhouette(vec2 ts) {
+  float b = 0.0;
+  for (int dy = -2; dy <= 2; dy++) {
+    for (int dx = -2; dx <= 2; dx++) {
+      vec2 q = ts + vec2(float(dx), float(dy));
+      float a = 0.0;
+      if (q.x >= 0.0 && q.y >= 0.0 && q.x < uTaille.x && q.y < uTaille.y) a = texture2D(uNeutre, (q + 0.5) / uTaille).a;
+      if (a < 0.5) b = max(b, (abs(float(dx)) <= 1.0 && abs(float(dy)) <= 1.0) ? 1.0 : 0.6);
+    }
+  }
+  return b;
+}
+
+vec3 recu(vec3 n, vec2 t, vec2 lp, float bord) {
   // vecteur vers la lumiere, repere des normales : x droite, y HAUT, z vers le spectateur
   vec3 d = vec3(lp.x - t.x, t.y - lp.y, uHauteur);
   float dist = length(d);
+  // pas de valeur absolue : lumiere derriere (z < 0), les faces tournees vers l'avant donnent
+  // un produit negatif -> 0 ; seuls les bords dont la normale pointe vers elle s'allument (contre-jour)
   float diff = max(dot(n, d / dist), 0.0);
+  if (uHauteur < 0.0) {
+    // contre-jour : les normales rasantes quantifiees (z ~0,37) recoivent trop peu d'une lumiere
+    // derriere ; on ajoute un lisere sur le BORD DE LA SILHOUETTE seulement, la ou la normale
+    // pointe vers la lumiere dans le plan (jamais a l'interieur ni sur la face cachee)
+    vec2 nl = length(n.xy) > 0.01 ? normalize(n.xy) : vec2(0.0);
+    float cote = max(dot(nl, normalize(d.xy + vec2(0.0001))), 0.0);
+    float rim = uContre * bord * cote * clamp(-uHauteur / 10.0, 0.0, 1.0);
+    diff = max(diff, min(1.0, rim));
+  }
   float att = clamp(1.0 - (dist * dist) / (uPortee * uPortee), 0.0, 1.0);
   return vec3(palier(diff * att));
 }
@@ -185,15 +214,26 @@ vec3 recu(vec3 n, vec2 t, vec2 lp) {
 void main() {
   vec2 fc = vec2(gl_FragCoord.x, uCanvas.y - gl_FragCoord.y);
   if (uMode > 8.5) {
+    // disques des lumieres ; derriere le plan : dessines AVANT les sprites (caches par la
+    // silhouette) avec un halo, devant : par-dessus
+    bool derriere = uHauteur < 0.0;
+    if ((uDisques > 0.5) == derriere) discard;
+    vec4 o = vec4(0.0);
     for (int i = 0; i < 2; i++) {
       if (float(i) >= uN) break;
       vec2 lp = i == 0 ? uL1 : uL2;
       vec3 lc = i == 0 ? uC1 : uC2;
       float r = length(fc - lp);
-      if (r < uRayonDisque) { gl_FragColor = vec4(mix(lc, vec3(1.0), 0.35), 1.0); return; }
-      if (r < uRayonDisque + 1.5) { gl_FragColor = vec4(vec3(0.05), 1.0); return; }
+      if (r < uRayonDisque) { o = vec4(mix(lc, vec3(1.0), 0.35), 1.0); break; }
+      if (!derriere && r < uRayonDisque + 1.5) { o = vec4(vec3(0.05), 1.0); break; }
+      if (derriere && r < uRayonDisque * 4.0) {
+        float h = 1.0 - (r - uRayonDisque) / (uRayonDisque * 3.0);
+        o = max(o, vec4(lc, 0.45 * h * h));
+      }
     }
-    discard;
+    if (o.a <= 0.0) discard;
+    gl_FragColor = o;
+    return;
   }
   vec2 t = floor((fc - uOrigineEcr) / uEchelle);
   if (t.x < 0.0 || t.y < 0.0 || t.x >= uTaille.x || t.y >= uTaille.y) discard;
@@ -213,8 +253,9 @@ void main() {
     if (uFlip > 0.5) n.x = -n.x;   // le sprite regarde de l'autre cote : sa face gauche devient la droite
     n = normalize(n);
     vec2 tc = t + 0.5;
-    vec3 l = vec3(uAmbiante) + uC1 * uIntensite * recu(n, tc, (uL1 - uOrigineEcr) / uEchelle);
-    if (uN > 1.5) l += uC2 * uIntensite * recu(n, tc, (uL2 - uOrigineEcr) / uEchelle);
+    float bord = uHauteur < 0.0 ? bordSilhouette(ts) : 0.0;
+    vec3 l = vec3(uAmbiante) + uC1 * uIntensite * recu(n, tc, (uL1 - uOrigineEcr) / uEchelle, bord);
+    if (uN > 1.5) l += uC2 * uIntensite * recu(n, tc, (uL2 - uOrigineEcr) / uEchelle, bord);
     c = base.rgb * l;
   }
   gl_FragColor = vec4(c, 1.0);
@@ -240,7 +281,7 @@ void main() {
   const U = {};
   for (const n of ["uRect", "uNeutre", "uNormales", "uOrigine", "uSections", "uTaille", "uCanvas",
     "uOrigineEcr", "uEchelle", "uMode", "uPaliers", "uAmbiante", "uHauteur", "uPortee", "uIntensite",
-    "uL1", "uL2", "uC1", "uC2", "uN", "uRayonDisque", "uFlip"]) U[n] = gl.getUniformLocation(prog, n);
+    "uL1", "uL2", "uC1", "uC2", "uN", "uRayonDisque", "uFlip", "uContre", "uDisques"]) U[n] = gl.getUniformLocation(prog, n);
   gl.uniform1i(U.uNeutre, 0); gl.uniform1i(U.uNormales, 1);
   gl.uniform1i(U.uOrigine, 2); gl.uniform1i(U.uSections, 3);
 
@@ -354,6 +395,8 @@ void main() {
   if (ha && assets[+ha[1]]) { etat.courant = +ha[1]; $("asset").value = ha[1]; }
   if (/marche/.test(location.hash)) { anim.marcher = true; $("marcher").checked = true; }
   if (/sens/.test(location.hash)) { anim.sens = true; $("sens").checked = true; }
+  const hz = /z=(-?\d+)/.exec(location.hash);
+  if (hz) $("hauteur").value = hz[1];
   const hf = /f=(\d+)/.exec(location.hash);
   if (hf) { anim.joue = false; anim.f = +hf[1]; }
   const hx = /x=(-?[\d.]+)/.exec(location.hash);
@@ -386,7 +429,8 @@ void main() {
   presets("couleurs1", $("couleur1"));
   presets("couleurs2", $("couleur2"));
 
-  const affichages = { hauteur: (v) => v + " px", intensite: (v) => (+v).toFixed(2),
+  const affichages = { hauteur: (v) => (v > 0 ? "+" : "") + v + " px" + (v < 0 ? " (derriere)" : v > 0 ? " (devant)" : " (dans le plan)"),
+    contre: (v) => (+v).toFixed(1), intensite: (v) => (+v).toFixed(2),
     portee: (v) => v + " px", ambiante: (v) => Math.round(v * 100) + " %" };
   for (const id in affichages) {
     const e = $(id), o = $("o-" + id);
@@ -453,6 +497,15 @@ void main() {
     gl.uniform3fv(U.uC1, hex($("couleur1").value)); gl.uniform3fv(U.uC2, hex($("couleur2").value));
     gl.uniform1f(U.uN, n2);
     gl.uniform1f(U.uRayonDisque, 6 * dpr);
+    gl.uniform1f(U.uContre, +$("contre").value);
+    // lumieres derriere : disques et halos d'abord, les sprites les recouvrent
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.uniform1f(U.uFlip, 0);
+    gl.uniform1f(U.uMode, 9);
+    gl.uniform1f(U.uDisques, 0);
+    gl.uniform4f(U.uRect, 0, 0, W, H);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.uniform1f(U.uMode, etat.mode);
     // marche : aller-retour dans la scene (la lumiere, elle, reste fixe)
     let dx = 0;
@@ -477,6 +530,7 @@ void main() {
     }
     gl.uniform1f(U.uFlip, 0);
     gl.uniform1f(U.uMode, 9);
+    gl.uniform1f(U.uDisques, 1);
     gl.uniform4f(U.uRect, 0, 0, W, H);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
