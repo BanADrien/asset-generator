@@ -7,6 +7,12 @@ cales sur les notes de l'utilisateur. La boucle recommence jusqu'a 8/10 (4 essai
 livre le sprite, la planche historique des essais notes et une fiche de notes. Les lecons de
 chaque utilisation s'ajoutent a `learnings.md`.
 
+Mode « sections » : pour un sprite existant, `scripts/sections.py` produit une version neutre
+(couleurs de base en aplats), une carte de sections (zones en couleurs franches, retouchables a
+la main) et une carte de normales quantifiee, pour un eclairage dynamique en paliers dans le jeu
+(Phaser 3, Light2D) ; `scripts/viewer.py` en fait une page de test autonome ou l'on deplace une
+lumiere. Detail et integration : `references/lumiere.md`. Alternative manuelle gratuite : Laigter.
+
 ## Installer sur un autre PC
     git clone https://github.com/BanADrien/asset-generator.git ~/.claude/skills/pixel-art-forge
 Claude Code le detecte au demarrage suivant (il se declenche sur « sprite », « pixel art »,
@@ -26,7 +32,9 @@ Claude Code le detecte au demarrage suivant (il se declenche sur « sprite », �
 - `SKILL.md` : la procedure suivie par Claude.
 - `style/` : guide de style tire des assets du jeu, palette, planche d'exemples.
 - `references/` : grille de notation, prompt des juges, conseils de prompt, sources.
-- `scripts/` : generation, pixelisation, mesures, planches, historique, livraison.
+- `scripts/` : generation, pixelisation, mesures, planches, historique, livraison ;
+  `sections.py` et `viewer.py` (mode sections).
+- `viewer/` : modele de la page de test d'eclairage.
 - `calibration/` : sprites notes par l'utilisateur, ancres des juges (`calibration.md`).
 - Profil par defaut `natif` (taille et palette de l'image generee) ; anciens profils `petit`
   et `detaille` (reduction 64 px + palette du jeu) gardes pour memoire.

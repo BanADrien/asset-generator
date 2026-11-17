@@ -1,6 +1,6 @@
 ---
 name: pixel-art-forge
-description: Produit de beaux sprites pixel art pour le jeu Legend of Agarica (plateformer 2D, depot agarica) dans le style voulu par l'utilisateur, avec notation stricte sur 10 et boucle de correction jusqu'a 8/10 (4 essais de 6 images max). Generation par Codex (codex exec, images de l'utilisateur), reduction fidele a la grille en resolution native, mesures de proprete, deux juges separes cales sur ses notes, planche historique. Utiliser des que l'utilisateur parle de sprite, pixel art, asset du jeu, agarica, d'un animal ou personnage du jeu a dessiner ou refaire (crapaud, oiseau, singe, ours-hibou, chat, loup...), ou trouve un sprite du jeu moche, meme s'il ne dit pas « pixel art ».
+description: Produit de beaux sprites pixel art pour le jeu Legend of Agarica (plateformer 2D, depot agarica) dans le style voulu par l'utilisateur, avec notation stricte sur 10 et boucle de correction jusqu'a 8/10 (4 essais de 6 images max). Generation par Codex (codex exec, images de l'utilisateur), reduction fidele a la grille en resolution native, mesures de proprete, deux juges separes cales sur ses notes, planche historique. Utiliser des que l'utilisateur parle de sprite, pixel art, asset du jeu, agarica, d'un animal ou personnage du jeu a dessiner ou refaire (crapaud, oiseau, singe, ours-hibou, chat, loup...), ou trouve un sprite du jeu moche, meme s'il ne dit pas « pixel art » Mode « sections » : rendre un asset existant sensible a la lumiere (lumiere, eclairage, normales, carte de normales, sprite en sections, asset existant) : version neutre + carte de sections + normales + page de test d'eclairage.
 ---
 
 # Pixel Art Forge
@@ -80,11 +80,29 @@ mesures ou grille pendant une boucle.
 
 Apres 4 essais sous 8 : livrer le meilleur avec sa note honnete et ses defauts.
 
+## Mode « sections » (asset existant qui doit reagir a la lumiere)
+Declencheurs : lumiere, eclairage, normales, carte de normales, sprite en sections, asset
+existant a eclairer. Pas de Codex, pas de juges, pas de boucle : on part du sprite tel quel.
+Detail, table des couleurs et integration Phaser : `references/lumiere.md`.
+1. `& $py -I scripts/sections.py W/<nom>.png --apercu` -> `<nom>.neutre.png` (aplats par
+   matiere, contour et oeil gardes), `<nom>.sections.png` (zones en couleurs franches, 1 couleur
+   = 1 direction), `<nom>.normales.png` (R = x, G = y vers le HAUT, B = z) + planche d'apercu.
+   Regarder l'apercu (zones = parties de l'animal ? lumiere a gauche = cote gauche eclaire ?).
+   Neutre rate : `--rampes` / `--garder` ; en dernier recours UNE generation Codex (voir
+   `lumiere.md`), gardee seulement si la silhouette est identique au pixel pres.
+2. Retouche a la main de `sections.png` par l'utilisateur -> `--depuis-sections` recalcule les
+   normales. Sprite qui regarde a gauche dans le jeu : `--gauche`.
+3. `& $py -I scripts/viewer.py W/<nom>.png --echelle 6` -> `<nom>-lumiere.html` autonome.
+4. Livraison dans `Telechargements` sans ecraser (suffixe -2, -3...) : `<nom>-lumiere.html` et
+   un dossier `<nom>-sections\` (neutre, normales, sections). Pas de note sur 10 ni de
+   calibration dans ce mode ; l'utilisateur regarde la page et dit ce qu'il faut retoucher.
+
 ## Fichiers
 - `style/guide.md`, `style/etalon-style.png` (etalon de STYLE), `style/examples/`
-- `references/rubric.md`, `references/judge-prompt.md`, `references/prompting.md`,
+- `references/rubric.md`, `references/judge-prompt.md`, `references/prompting.md`, `references/lumiere.md`,
   `references/SOURCES.md`, `references/img/` (CC0)
-- `scripts/` : `forge_try.py` (un essai), `generate.py` (Codex), `grid_reduce.py` (reduction
+- `scripts/` : `sections.py` + `viewer.py` (mode sections, page `viewer/lumiere-template.html`),
+  `forge_try.py` (un essai), `generate.py` (Codex), `grid_reduce.py` (reduction
   par defaut), `measure.py`, `score.py`, `board.py`, `history.py`, `deliver.py`, `forge_lib.py` ;
   `pixelize.py` = ancienne reduction 64 px + palette (hors chemin par defaut)
 - `calibration/` (images notees + `calibration.md`), `learnings.md`
