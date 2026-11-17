@@ -745,6 +745,91 @@ def peint_vers_jeu(im, echelle, ncol=32):
     return out.crop(out.getchannel("A").getbbox())
 
 
+# ---------------------------------------------------------------- geometrie (contre-jour)
+GEO_PAD = 6        # marge autour du sprite dans la texture de geometrie (halo)
+GEO_TROU_MIN = 12  # trou transparent enferme : exterieur seulement a partir de 12 px
+
+
+def geometrie(im, pad=GEO_PAD, trou_min=GEO_TROU_MIN):
+    """Texture de geometrie pour le contre-jour de la page de test, taille (w + 2 pad, h + 2 pad) :
+    R = profondeur depuis le bord EXTERIEUR (1 = pixel le plus exterieur), G = epaisseur locale,
+    B = distance au sprite pour les pixels du fond (halo) ; valeurs x 16, plafond 15.
+    Bord exterieur reel : silhouette fermee d'1 px (les fentes de 1-2 px entre visage et cheveux,
+    bras et corps, cape et corps ne sont pas du fond), puis remplissage depuis le bord de l'image ;
+    trous enfermes < trou_min px et pixels semi-transparents isoles = interieur."""
+    from PIL import ImageFilter
+    w, h = im.size
+    W, H = w + 2 * pad, h + 2 * pad
+    m = Image.new("L", (W, H), 0)
+    a = im.getchannel("A")
+    m.paste(a.point(lambda v: 255 if v >= 128 else 0), (pad, pad))
+    closed = m.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))
+    cm, om = closed.load(), m.load()
+    ext = [[False] * H for _ in range(W)]
+    q = deque()
+    for x in range(W):
+        for y in (0, H - 1):
+            if cm[x, y] == 0 and not ext[x][y]:
+                ext[x][y] = True; q.append((x, y))
+    for y in range(H):
+        for x in (0, W - 1):
+            if cm[x, y] == 0 and not ext[x][y]:
+                ext[x][y] = True; q.append((x, y))
+    while q:
+        x, y = q.popleft()
+        for dx, dy in N4:
+            X, Y = x + dx, y + dy
+            if 0 <= X < W and 0 <= Y < H and not ext[X][Y] and cm[X, Y] == 0:
+                ext[X][Y] = True; q.append((X, Y))
+    # grands trous enfermes (vrais espaces) : exterieur aussi
+    seen = set()
+    for y in range(H):
+        for x in range(W):
+            if om[x, y] == 0 and not ext[x][y] and (x, y) not in seen and cm[x, y] == 0:
+                comp, qq = [(x, y)], deque([(x, y)])
+                seen.add((x, y))
+                while qq:
+                    cx, cy = qq.popleft()
+                    for dx, dy in N4:
+                        X, Y = cx + dx, cy + dy
+                        if 0 <= X < W and 0 <= Y < H and (X, Y) not in seen and cm[X, Y] == 0 and not ext[X][Y]:
+                            seen.add((X, Y)); comp.append((X, Y)); qq.append((X, Y))
+                if len(comp) >= trou_min:
+                    for c in comp:
+                        ext[c[0]][c[1]] = True
+    # profondeur depuis l'exterieur (8-voisins) pour tout ce qui n'est pas exterieur
+    INF = 99
+    D = [[0 if ext[x][y] else INF for y in range(H)] for x in range(W)]
+    q = deque((x, y) for x in range(W) for y in range(H) if ext[x][y])
+    while q:
+        x, y = q.popleft()
+        for dx, dy in N8:
+            X, Y = x + dx, y + dy
+            if 0 <= X < W and 0 <= Y < H and D[X][Y] > D[x][y] + 1:
+                D[X][Y] = D[x][y] + 1; q.append((X, Y))
+    # distance au sprite pour le fond exterieur (halo)
+    O = [[INF if ext[x][y] else 0 for y in range(H)] for x in range(W)]
+    q = deque((x, y) for x in range(W) for y in range(H) if not ext[x][y])
+    while q:
+        x, y = q.popleft()
+        for dx, dy in N8:
+            X, Y = x + dx, y + dy
+            if 0 <= X < W and 0 <= Y < H and O[X][Y] > O[x][y] + 1:
+                O[X][Y] = O[x][y] + 1; q.append((X, Y))
+    out = Image.new("RGBA", (W, H), (0, 0, 0, 255))
+    px = out.load()
+    for y in range(H):
+        for x in range(W):
+            d = D[x][y] if om[x, y] else 0
+            th = 0
+            if om[x, y]:
+                mx = max(D[X][Y] for X in range(max(0, x - 1), min(W, x + 2)) for Y in range(max(0, y - 1), min(H, y + 2))
+                         if om[X, Y])
+                th = 2 * mx - 1
+            px[x, y] = (min(d, 15) * 16, min(th, 15) * 16, min(O[x][y], 15) * 16, 255)
+    return out
+
+
 # ---------------------------------------------------------------- facteur pixel-fixer
 def phase_grille(im, f, pas=0.5):
     """Calage de la grille de f px (pixel-fixer) : decalage (px, py) pour lequel chaque case est

@@ -131,8 +131,8 @@ jeu). Autonome, double-clic, Chrome : le sprite au centre a echelle entiere,
 lumiere a glisser (souris ou doigt), WebGL sans bibliotheque. Reglages : hauteur, intensite,
 portee, ambiante, profondeur de la lumiere (-60 derriere a +60 devant, 8 par defaut ; trop
 grande devant, le sommet des formes s'assombrit quand la lampe est proche ; derriere : contre-jour,
-point lumineux cache par la silhouette avec un halo ; reglages « Contre-jour » et « Epaisseur du
-lisere » 1-2 px), couleur
+point lumineux cache par la silhouette avec un halo ; « Style de contre-jour » lisere pixel art ou
+couronne, « Contre-jour », « Degrade du lisere » 1-3 px, « Translucidite », « Halo »), couleur
 (torche, lune, blanc), paliers 2-5 ou lisse, 2e lumiere, affichage du
 sprite d'origine / des sections / des normales a la place. Adresse : `#l=0.1,0.3` (lumiere au
 depart, fraction de la boite affichee), `&a=2` (asset), `&tous`, `&m=2` (affichage).
@@ -203,22 +203,28 @@ classe, apres `super.onRender(scene, camera)` :
       this.set1f(`uLightZ[${i}]`, l.profondeur ?? 0.015));   // negatif = derriere ; meme ordre que Phaser
 
 Lumiere derriere : le produit scalaire (sans valeur absolue) eteint les faces tournees vers l'avant.
-Le contre-jour est un LISERE EMIS sur le contour exterieur, ajoute a la couleur (pas multiplie :
-noir x lumiere = noir, le gros contour noir resterait noir) :
+Le contre-jour se fait avec une TEXTURE DE GEOMETRIE par image (`sections.geometrie`, ecrite par
+`viewer.py` ; a precalculer pareil pour le jeu, et a joindre au sprite comme 3e texture) :
+R = profondeur depuis le bord EXTERIEUR reel, G = epaisseur locale, B = distance au sprite dans le
+fond (marge de 6 px). Bord exterieur reel = silhouette fermee d'1 px puis remplissage depuis le bord
+de l'image : les fentes de 1-2 px (visage/cheveux, bras/corps, cape/corps : 35 a 53 pixels de
+« bord » par frame de la marche) ne s'allument plus ; trous enfermes < 12 px = interieur.
 
-    bord  = un pixel vide a <= e px (e = 1 ou 2, lectures de l'alpha voisin : uniform de taille de texel)
-    d2    = distance dans le plan lampe-pixel ; d3 = sqrt(d2^2 + z^2)
-    s     = -z / d3                                   // diffusion vers l'avant : fort juste derriere
-    att   = clamp(1 - d3^2 / portee^2, 0, 1)
-    w     = 0.5 + 0.5 * abs(dot(normalize(n.xy), dir2(lampe)))
-    l     = min(floor(contre * s * att * w * 3), 2) / 2   // 0 / 0,5 / 1
-    color.rgb += bord * l * couleurLampe * intensite * 0.9
+    sc = -z / d3 ; att = portee ; w = 0.5 + 0.5 |n2 . dir2(lampe)| ; fin = clamp((5 - G) / 4)
+    q  = min(floor(contre * sc^2 * att * w * (1 + 0.8 fin) * 3), 3)        // 0..3, selectif
+    style A « lisere pixel art » :
+      R = 1 et q >= 1 : couleur de la lampe (60 % ou 90 %), contour noir compris (pas un produit)
+      R = 2 et q >= 2 : matiere x lampe x 1,7-2,2 (eclaircie et teintee) ; R = 3 et q = 3 : x 1,5
+      sinon : rien, le contour noir d'origine revient
+    style B « couronne » : A + ambiance x 0,7 (face sombre, details lisibles) +
+      translucidite des parties fines : matiere x lampe x quantif(trans x sc^2 x att x clamp((6 - G) / 5))
+      + halo dans le fond (passe dessinee AVANT le sprite) : anneaux B = 1..4,
+        niveau = quantif(halo x sc^2 x att x (1 - (B - 1) / 4)) en 3 crans, alpha 0,7 x niveau
 
-Pas de test « lampe cachee ou non » : continu quand la lampe sort de la silhouette. Cachee au
-centre, tout le tour s'allume (plus fort pres d'elle) ; decalee, le bord proche fort puis estompe.
-Mesures (contre-jour 1,5, z = -20, part du contour allume) : lampe au centre, crapaud 93-100 % sur
-les 4 cotes, Agarica 98-100 % ; lampe hors silhouette a 8 px a gauche, crapaud bord gauche 0,75
-(100 %) / droit 0 ; Agarica gauche 0,70 (100 %) / droit 0,15 (29 %). Devant (z >= 0) : rien ne change.
+Formule continue (aucun test « lampe cachee ») : lampe cachee au centre -> couronne d'intensite
+variable ; lampe decalee -> contour proche fort, le reste revient au noir. Dans Phaser : memes
+calculs dans le pipeline personnalise (profondeur par lampe via uLightZ ci-dessus), la texture
+de geometrie en `uniform sampler2D`, le halo en sprite separe derriere le personnage.
 
 ### Sprite retourne (flipX) : inverser normal.x dans le meme pipeline
 Dans la copie du shader, remplacer la ligne du calcul de `normal` par :

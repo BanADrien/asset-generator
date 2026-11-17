@@ -11,10 +11,12 @@ pause, frame par frame, vitesse, « marcher » (aller-retour devant une lumiere 
 (miroir + normal.x inverse).
 N'ecrase jamais un fichier existant (suffixe -2, -3...).
 """
-import argparse, base64, json, os, sys
+import argparse, base64, io, json, os, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from forge_lib import SKILL, unique_path
+from PIL import Image
+import sections
 
 TEMPLATE = os.path.join(SKILL, "viewer", "lumiere-template.html")
 
@@ -32,7 +34,12 @@ def images(sprite):
         if not os.path.exists(p):
             sys.exit(f"manque {p} : lancer d'abord sections.py {sprite}")
         imgs[k] = p
-    return {k: data_uri(p) for k, p in imgs.items()}
+    out = {k: data_uri(p) for k, p in imgs.items()}
+    # geometrie pour le contre-jour (bord exterieur reel, epaisseur, distance du halo)
+    buf = io.BytesIO()
+    sections.geometrie(Image.open(sprite).convert("RGBA")).save(buf, "PNG")
+    out["geo"] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    return out
 
 
 def asset(sprite, nom, regarde="droite"):
@@ -59,7 +66,7 @@ def main():
     noms = [n.strip() for n in a.noms.split(",")] if a.noms else []
     assets = [asset(s, noms[i] if i < len(noms) else "", a.regarde or "droite") for i, s in enumerate(a.sprites)]
     titre = a.titre or (assets[0]["nom"] if len(assets) == 1 else "Assets")
-    donnees = {"titre": titre, "echelle": max(1, a.echelle), "assets": assets}
+    donnees = {"titre": titre, "echelle": max(1, a.echelle), "assets": assets, "geoPad": sections.GEO_PAD}
     with open(TEMPLATE, encoding="utf-8") as f:
         html = f.read()
     html = html.replace("/*__DONNEES__*/null", json.dumps(donnees))
