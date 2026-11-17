@@ -13,12 +13,18 @@ la main) et une carte de normales quantifiee, pour un eclairage dynamique en pal
 (Phaser 3, Light2D) ; `scripts/viewer.py` en fait une page de test autonome ou l'on deplace une
 lumiere. Detail et integration : `references/lumiere.md`. Alternative manuelle gratuite : Laigter.
 
+Tester n'importe quelle image : ouvrir `vos-images-lumiere.html` et glisser l'image. La page se
+produit avec `node scripts/js/apercu.js --vide` (Node, rien a installer) ; tout le calcul se fait
+dans la page (meme resultat que `sections.py`, au pixel pres), rien n'est envoye sur Internet.
+Verification : `node scripts/js/test-page.js` (Chrome ou Edge sans fenetre).
+
 ## Installer sur un autre PC
     git clone https://github.com/BanADrien/asset-generator.git ~/.claude/skills/pixel-art-forge
 Claude Code le detecte au demarrage suivant (il se declenche sur « sprite », « pixel art »,
 « asset du jeu », « agarica »...).
 
 ## Ce qu'il faut
+- Node 18+ pour la page « vos images » (scripts/js), sans dependance.
 - Python 3 avec Pillow (pas de numpy). Sur ce poste : le Python fourni avec pgAdmin, lance
   avec `-I`. Rien a installer.
 - Codex (extension VS Code « openai.chatgpt » ou `codex` dans le PATH), connecte au compte de
@@ -33,7 +39,8 @@ Claude Code le detecte au demarrage suivant (il se declenche sur « sprite », �
 - `style/` : guide de style tire des assets du jeu, palette, planche d'exemples.
 - `references/` : grille de notation, prompt des juges, conseils de prompt, sources.
 - `scripts/` : generation, pixelisation, mesures, planches, historique, livraison ;
-  `sections.py` et `viewer.py` (mode sections).
+  `sections.py` et `viewer.py` (mode sections) ; `js/` : page « vos images » (copie du calcul
+  `tools/lumiere/coeur.js` du jeu).
 - `viewer/` : modele de la page de test d'eclairage.
 - `calibration/` : sprites notes par l'utilisateur, ancres des juges (`calibration.md`).
 - Profil par defaut `natif` (taille et palette de l'image generee) ; anciens profils `petit`

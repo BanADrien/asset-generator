@@ -1013,13 +1013,13 @@ def cj_depuis_apercu(ap):
     return out
 
 
-def ecrire_cj(stem, depuis=""):
-    """<stem>.cj.png + <stem>.cj-apercu.png, depuis <stem>.png / .normales.png / .neutre.png, ou depuis
-    un apercu retouche (depuis = chemin de l'apercu)."""
+def ecrire_cj(stem, depuis="", im=None):
+    """<stem>.cj.png + <stem>.cj-apercu.png, depuis le sprite (im, sinon <stem>.png), .normales.png et
+    .neutre.png, ou depuis un apercu retouche (depuis = chemin de l'apercu)."""
     if depuis:
         cj = cj_depuis_apercu(Image.open(depuis))
     else:
-        im = Image.open(stem + ".png").convert("RGBA")
+        im = (im or Image.open(stem + ".png")).convert("RGBA")
         neu = stem + ".neutre.png"
         cj = carte_cj(im, Image.open(stem + ".normales.png"), Image.open(neu) if os.path.exists(neu) else im)
     cj.save(stem + ".cj.png")
@@ -1285,13 +1285,13 @@ def main():
         p, used = normals_from_sections(a.depuis_sections, stem)
         print(p)
         print("sections lues :", ", ".join(sorted(used)))
-        for p in ecrire_cj(stem):
+        for p in ecrire_cj(stem, im=im):
             print(p)
     else:
         opq, neutral, codes, info = analyse(im, garder, rampes, peint=a.echelle_jeu > 0)
         for p in save_maps(im, opq, neutral, codes, stem).values():
             print(p)
-        for p in ecrire_cj(stem):
+        for p in ecrire_cj(stem, im=im):
             print(p)
         print("rampes (couleur neutre <- couleurs) :")
         for b, r in info["ramps"]:

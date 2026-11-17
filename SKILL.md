@@ -110,12 +110,21 @@ Detail, table des couleurs et integration Phaser : `references/lumiere.md`.
 4. Livraison dans `Telechargements` sans ecraser (suffixe -2, -3...) : `<nom>-lumiere.html` et
    un dossier `<nom>-sections\` (neutre, normales, sections). Pas de note sur 10 ni de
    calibration dans ce mode ; l'utilisateur regarde la page et dit ce qu'il faut retoucher.
+5. **Tester n'importe quelle image : ouvrir `vos-images-lumiere.html` et glisser l'image.** Page
+   produite par `node scripts/js/apercu.js --vide [--out CHEMIN.html]` (jamais d'ecrasement).
+   Dans la page : « Charger une image » ou glisser-deposer un PNG / JPG (plusieurs = une animation,
+   dans l'ordre des noms), fond uni retire (tolerance), taille d'un pixel dessine auto ou imposee,
+   meme calcul que `sections.py` (`scripts/js/coeur.js`, cartes identiques au pixel pres), meme
+   lumiere, liens de telechargement des cartes. Rien n'est envoye sur Internet. Parite :
+   `node scripts/js/test-page.js [IMAGE[@facteur] ...]` (navigateur sans fenetre = Node = Python).
 
 ## Fichiers
 - `style/guide.md`, `style/etalon-style.png` (etalon de STYLE), `style/examples/`
 - `references/rubric.md`, `references/judge-prompt.md`, `references/prompting.md`, `references/lumiere.md`,
   `references/SOURCES.md`, `references/img/` (CC0)
 - `scripts/` : `sections.py` + `viewer.py` (mode sections, page `viewer/lumiere-template.html`),
+  `js/` (page « vos images » : `apercu.js`, `test-page.js` ; `coeur.js`, `geo.js`, `perso.js`,
+  `png.js` copies du depot du jeu, tools/lumiere, commit bd62a60),
   `forge_try.py` (un essai), `generate.py` (Codex), `grid_reduce.py` (reduction
   par defaut), `measure.py`, `score.py`, `board.py`, `history.py`, `deliver.py`, `forge_lib.py` ;
   `pixelize.py` = ancienne reduction 64 px + palette (hors chemin par defaut)
