@@ -172,3 +172,6 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
 - 2026-11-17 - v10 « pas fluide, comme si c'etait un mode different » : une formule devant et
   une derriere = bascule visible. UNE formule pour toutes les positions de lampe, termes ponderes
   par des fonctions lisses de la position (smoothstep sur z, occultation douce), un seul palier.
+- 2026-11-17 - crapaud « effet bande sur les cotes » : un terme base sur la distance au bord fait
+  toujours un anneau d'epaisseur constante ; la rasance doit venir des sections. Verifier que le
+  contour epais est bien detecte sombre (#212121 = luminance 0,13).

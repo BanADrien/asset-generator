@@ -280,7 +280,7 @@ float occultation(vec2 lp) {
   return smoothstep(-8.0, 6.0, sd);
 }
 
-float eclairage(vec3 n, vec2 ts, vec2 t, vec2 lp, float occ) {
+float eclairage(vec3 n, vec2 ts, vec2 t, vec2 lp, float occ, float lumBase) {
   float wb = smoothstep(15.0, -15.0, uHauteur);
   vec3 ne = n;
   if (wb > 0.0) ne = normalize(mix(n, normaleLisse(ts), wb));   // wb = 0 : rien a melanger
@@ -289,19 +289,26 @@ float eclairage(vec3 n, vec2 ts, vec2 t, vec2 lp, float occ) {
   float att = clamp(1.0 - (dist * dist) / (uPortee * uPortee), 0.0, 1.0);
   float w = 0.5 * wb;
   float diff = max((dot(ne, d / dist) + w) / (1.0 + w), 0.0) * att;
+  // contour sombre (couleur de base presque noire) : pas de contre-jour, il suit sa section et
+  // s'eclaircit au plus d'un palier (toute la lumiere reste multipliee par la couleur de base)
+  if (lumBase < 0.16) return min(diff, uPaliers < 1.5 ? 0.34 : 1.0 / (uPaliers - 1.0));
   float cj = 0.0;
   float m = length(ne.xy);
   if (wb > 0.0 && m > 0.001) {
-    float ras = smoothstep(0.2, 0.6, 1.0 - ne.z);
+    // rasance de la SECTION (plans de la forme des parties) et non une distance au bord :
+    // plus d'anneau d'epaisseur constante
+    float ras = smoothstep(0.2, 0.6, 1.0 - n.z);
     vec2 dl = d.xy;
     float d2 = length(dl);
     float dd = dot(ne.xy / m, dl / max(d2, 0.001));
     float dir = 0.5 + 0.5 * mix(dd, -dd, occ);
     dir = dir * dir * dir;
-    float vis = 1.0 - smoothstep(1.0, 5.0, geoAt(ts).r);
+    // diffusion vers l'avant : forte pres de la lampe en 2D, decroit en s'eloignant (lampe cachee
+    // au centre : le tour ne s'allume pas partout avec la meme force)
+    float sc = abs(uHauteur) / sqrt(d2 * d2 + uHauteur * uHauteur + 0.0001);
     float R = max(uPortee * 0.3, 4.0);
     float a2 = clamp(1.0 - (d2 * d2) / (R * R), 0.0, 1.0);
-    cj = 0.67 * uContre * wb * ras * dir * vis * a2 * a2;
+    cj = 0.67 * uContre * wb * ras * dir * sc * sc * a2 * a2;
   }
   return min(diff + cj, 1.0);
 }
@@ -352,8 +359,9 @@ void main() {
     vec3 l;
     if (uAncien < 0.5) {
       // v11 : modele unique (contour noir = sa couleur sombre x l'eclairage de sa section)
-      l = vec3(uAmbiante) + uC1 * uIntensite * palier(eclairage(n, ts, tc, l1, occultation(l1)));
-      if (uN > 1.5) l += uC2 * uIntensite * palier(eclairage(n, ts, tc, l2, occultation(l2)));
+      float lb = dot(base.rgb, vec3(0.3, 0.59, 0.11));
+      l = vec3(uAmbiante) + uC1 * uIntensite * palier(eclairage(n, ts, tc, l1, occultation(l1), lb));
+      if (uN > 1.5) l += uC2 * uIntensite * palier(eclairage(n, ts, tc, l2, occultation(l2), lb));
     } else if (uHauteur >= 0.0) {
       // v10 (pour comparer) : formule de face...
       l = vec3(uAmbiante) + uC1 * uIntensite * recu(n, tc, l1);
@@ -505,6 +513,8 @@ void main() {
   if (/marche/.test(location.hash)) { anim.marcher = true; $("marcher").checked = true; }
   if (/sens/.test(location.hash)) { anim.sens = true; $("sens").checked = true; }
   if (/ancien/.test(location.hash)) $("ancien").checked = true;
+  const hc = /[&#]c=([0-9a-fA-F]{6})/.exec(location.hash);
+  if (hc) $("couleur1").value = "#" + hc[1].toLowerCase();
   const hp = /[&#]p=(\d+)/.exec(location.hash);
   if (hp) $("portee").value = hp[1];
   const hz = /z=(-?\d+)/.exec(location.hash);

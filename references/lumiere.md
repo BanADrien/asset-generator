@@ -213,11 +213,21 @@ sans branche sur z ni sur « lampe cachee » ; seuls les paliers font des marche
     diff  = max((ne . L + w) / (1 + w), 0) x att3D,  w = 0,5 wb      // « wrap » doux
     occ   = smoothstep(-8, 6, distance signee lampe/silhouette)       // lampe cachee, en douceur
             (dedans : profondeur ; dehors : -distance ; texture de geometrie, marge 10 px)
-    cj    = 0,67 contre x wb x smoothstep(0,2 ; 0,6 ; 1 - ne.z)
-            x (0,5 + 0,5 mix(n2.u, -n2.u, occ))^3 x (1 - smoothstep(1 ; 5 ; profondeur du pixel))
+    cj    = 0,67 contre x wb x smoothstep(0,2 ; 0,6 ; 1 - n_section.z)     // plans rasants des SECTIONS
+            x (0,5 + 0,5 mix(n2.u, -n2.u, occ))^3                          // n2 : normale lissee
+            x sc^2, sc = |z| / sqrt(d2^2 + z^2)                             // diffusion vers l'avant
             x (1 - d2^2 / (0,3 portee)^2)^2
+    contour sombre (luminance de base < 0,16) : pas de cj, e = min(diff, 1 palier)
     lumiere = ambiance + couleur x intensite x palier(min(diff + cj, 1))   // un plafond, un palier
+    Tout est MULTIPLIE par la couleur de base du neutre : aucune part additive de la lampe.
 
+v12 (crapaud « effet bande sur les cotes ») : en v11 le terme « proximite du bord » (1 - smoothstep(1;5;
+profondeur)) x rasance de la normale LISSEE faisait un anneau de 3-5 px d'epaisseur constante,
+egal tout autour quand la lampe est cachee (contre-jour moyen 0,44-0,50 sur l'anneau de 3 px contre
+0,01 a l'interieur, 79-82 % de l'anneau allume) ; et le contour du crapaud (#212121, luminance 0,13)
+n'etait pas reconnu comme sombre (seuil 0,12) : sombre x lampe verte = vert fonce visible. v12 :
+rasance prise sur la section, decroissance sc^2 avec la distance 2D, seuil 0,16 -> anneau 9-12 %
+allume, palier moyen 0,04, l'interieur garde ses plans (8-9 %).
 Lampe devant (z >= 15) : wb = 0, c'est exactement N.L x attenuation, comme avant. Continuite
 (variation moyenne avant paliers d'un pas au suivant, « pic isole » = ecart au voisinage),
 v10 -> v11 : Agarica, balayage de profondeur lampe a gauche 0,031 -> 0,001, lampe traversant la
