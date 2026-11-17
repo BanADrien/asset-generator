@@ -277,7 +277,9 @@ float occultation(vec2 lp) {
   if (q.x < -uPad || q.y < -uPad || q.x >= uTaille.x + uPad || q.y >= uTaille.y + uPad) return 0.0;
   vec3 g = geoAt(q);
   float sd = g.r > 0.5 ? g.r : -g.b;     // profondeur dedans, distance dehors
-  return smoothstep(-8.0, 6.0, sd);
+  // v13 : reste 1 tant que la lampe est dans la silhouette (avant : commencait a baisser 6 px avant
+  // le bord, alors que la lampe est encore cachee), puis baisse sur les 8 px dehors
+  return smoothstep(-8.0, 0.0, sd);
 }
 
 float eclairage(vec3 n, vec2 ts, vec2 t, vec2 lp, float occ, float lumBase) {
@@ -301,8 +303,16 @@ float eclairage(vec3 n, vec2 ts, vec2 t, vec2 lp, float occ, float lumBase) {
     vec2 dl = d.xy;
     float d2 = length(dl);
     float dd = dot(ne.xy / m, dl / max(d2, 0.001));
-    float dir = 0.5 + 0.5 * mix(dd, -dd, occ);
+    // v13 : max() et non mix() : quand la lampe franchit le bord (occ ~ 0,5), mix(dd, -dd, occ)
+    // passait par 0 (dir = 0,125) et le cote proche s'eteignait juste a la sortie ; ici le bord
+    // tourne vers la lampe (dd > 0) garde tout son poids, celui qui lui tourne le dos (dd < 0)
+    // n'en recoit que si la lampe est cachee (-dd x occ) : monotone et continu
+    float dir = 0.5 + 0.5 * max(dd, -dd * occ);
     dir = dir * dir * dir;
+    // v13 : lampe juste derriere le pixel (distance 2D faible devant |z|) : la lumiere arrive par
+    // derriere, la direction 2D compte peu (sinon le pixel s'eteint au moment ou la lampe passe
+    // a sa hauteur) ; pleine dependance a la direction au-dela de 1,25 |z|
+    dir = mix(1.0, dir, smoothstep(0.0, max(1.25 * abs(uHauteur), 0.5), d2));
     // diffusion vers l'avant : forte pres de la lampe en 2D, decroit en s'eloignant (lampe cachee
     // au centre : le tour ne s'allume pas partout avec la meme force)
     float sc = abs(uHauteur) / sqrt(d2 * d2 + uHauteur * uHauteur + 0.0001);

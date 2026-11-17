@@ -214,7 +214,7 @@ sans branche sur z ni sur « lampe cachee » ; seuls les paliers font des marche
     occ   = smoothstep(-8, 6, distance signee lampe/silhouette)       // lampe cachee, en douceur
             (dedans : profondeur ; dehors : -distance ; texture de geometrie, marge 10 px)
     cj    = 0,67 contre x wb x smoothstep(0,2 ; 0,6 ; 1 - n_section.z)     // plans rasants des SECTIONS
-            x (0,5 + 0,5 mix(n2.u, -n2.u, occ))^3                          // n2 : normale lissee
+            x (0,5 + 0,5 max(n2.u, -n2.u x occ))^3                         // n2 : normale lissee
             x sc^2, sc = |z| / sqrt(d2^2 + z^2)                             // diffusion vers l'avant
             x (1 - d2^2 / (0,3 portee)^2)^2
     contour sombre (luminance de base < 0,16) : pas de cj, e = min(diff, 1 palier)
@@ -228,6 +228,17 @@ egal tout autour quand la lampe est cachee (contre-jour moyen 0,44-0,50 sur l'an
 n'etait pas reconnu comme sombre (seuil 0,12) : sombre x lampe verte = vert fonce visible. v12 :
 rasance prise sur la section, decroissance sc^2 avec la distance 2D, seuil 0,16 -> anneau 9-12 %
 allume, palier moyen 0,04, l'interieur garde ses plans (8-9 %).
+v13 (« la lampe la plus a gauche eclaire moins la gauche que la lampe cachee ») : le terme
+direction etait mix(dd, -dd, occ) ; quand la lampe franchit le bord (occ ~ 0,5) il passait par 0
+(direction = 0,125) : le cote proche s'eteignait juste a la sortie. Remplace par max(dd, -dd occ) :
+le bord tourne vers la lampe garde tout son poids, celui qui lui tourne le dos ne recoit que si la
+lampe est cachee. En plus : occultation = smoothstep(-8 ; 0 ; distance signee) (reste 1 tant
+que la lampe est dans la silhouette, avant elle baissait 6 px avant le bord) ; et quand la lampe est
+juste derriere le pixel, la direction compte peu : dir = mix(1, dir, smoothstep(0 ; max(1,25 |z| ; 0,5) ; d2)).
+Batterie de tests (Agarica f0 et f3, crapaud, loup, grizzly ; z = -40, -20, -10, +10, +40 ; portees
+220 et 800) : redescente maximale en approchant un cote 0,014 (v12 : jusqu'a 0,255), symetrie
+demi-sphere exacte, continuite profondeur et horizontale inchangees ou meilleures, anneau 5-21 %
+(v12 5-18 %), lumiere devant identique a v12, contour sombre <= 1 palier.
 Lampe devant (z >= 15) : wb = 0, c'est exactement N.L x attenuation, comme avant. Continuite
 (variation moyenne avant paliers d'un pas au suivant, « pic isole » = ecart au voisinage),
 v10 -> v11 : Agarica, balayage de profondeur lampe a gauche 0,031 -> 0,001, lampe traversant la
