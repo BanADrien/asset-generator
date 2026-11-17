@@ -90,9 +90,12 @@ Detail, table des couleurs et integration Phaser : `references/lumiere.md`.
    Regarder l'apercu (zones = parties de l'animal ? lumiere a gauche = cote gauche eclaire ?).
    Neutre rate : `--rampes` / `--garder` ; en dernier recours UNE generation Codex (voir
    `lumiere.md`), gardee seulement si la silhouette est identique au pixel pres.
+   Sprite HD du jeu (image peinte affichee reduite) : `--echelle-jeu <setScale du code>
+   --sortie W/<nom>` le ramene d'abord a sa taille vue en jeu (32 couleurs, alpha net).
 2. Retouche a la main de `sections.png` par l'utilisateur -> `--depuis-sections` recalcule les
    normales. Sprite qui regarde a gauche dans le jeu : `--gauche`.
-3. `& $py -I scripts/viewer.py W/<nom>.png --echelle 6` -> `<nom>-lumiere.html` autonome.
+3. `& $py -I scripts/viewer.py W/<nom>.png --echelle 6` -> `<nom>-lumiere.html` autonome ;
+   plusieurs sprites -> une page avec selecteur et « tous cote a cote » (`--noms`, `--out`).
 4. Livraison dans `Telechargements` sans ecraser (suffixe -2, -3...) : `<nom>-lumiere.html` et
    un dossier `<nom>-sections\` (neutre, normales, sections). Pas de note sur 10 ni de
    calibration dans ce mode ; l'utilisateur regarde la page et dit ce qu'il faut retoucher.

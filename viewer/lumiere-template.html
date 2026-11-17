@@ -42,6 +42,7 @@
   label.c { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; }
   label.c input { accent-color: var(--accent); }
   .ligne { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+  .pale { color: var(--pale); font-size: 12px; }
   p.aide { color: var(--pale); font-size: 12px; margin: 14px 0 0; }
   #erreur { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
     padding: 24px; text-align: center; color: var(--pale); }
@@ -63,6 +64,11 @@
     <div id="erreur">WebGL indisponible dans ce navigateur.</div>
   </div>
   <aside>
+    <fieldset id="bloc-assets" hidden>
+      <legend>Asset</legend>
+      <div class="ligne"><select id="asset" aria-label="Asset affiche"></select></div>
+      <label class="c"><input type="checkbox" id="tous"> <span id="tous-txt">Tous cote a cote</span></label>
+    </fieldset>
     <fieldset>
       <legend>Lumiere</legend>
       <div class="ligne">
@@ -74,7 +80,7 @@
       <label class="r">Intensite <output id="o-intensite"></output>
         <input type="range" id="intensite" min="0" max="2" step="0.05" value="1"></label>
       <label class="r">Portee <output id="o-portee"></output>
-        <input type="range" id="portee" min="20" max="400" step="5" value="220"></label>
+        <input type="range" id="portee" min="20" max="800" step="5" value="220"></label>
       <label class="r">Lumiere ambiante <output id="o-ambiante"></output>
         <input type="range" id="ambiante" min="0" max="1" step="0.02" value="0.36"></label>
     </fieldset>
@@ -85,7 +91,7 @@
           <option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>
           <option value="5">5</option><option value="0">lisse</option>
         </select></div>
-      <div class="ligne"><span>Agrandissement</span>
+      <div class="ligne"><span>Agrandissement <span class="pale" id="echelle-eff"></span></span>
         <select id="echelle"></select></div>
     </fieldset>
     <fieldset>
@@ -103,22 +109,32 @@
       <label class="c"><input type="checkbox" data-mode="3"> Carte de normales</label>
     </fieldset>
     <p class="aide">Le sprite neutre est multiplie par la lumiere recue par chaque section
-      (normales), puis arrondi en paliers. Avec 2 lumieres, la plus proche du pointeur se deplace.</p>
+      (normales), puis arrondi en paliers. Cote a cote : meme echelle et meme lumiere pour tous,
+      tailles relatives du jeu. Avec 2 lumieres, la plus proche du pointeur se deplace.</p>
   </aside>
 </main>
 <script>
 const DONNEES = /*__DONNEES__*/null;
 
 (function () {
-  const D = DONNEES || { nom: "sprite", echelle: 6, images: {} };
-  document.title = D.nom + " - eclairage";
-  document.getElementById("titre").textContent = D.nom + " - test d'eclairage";
+  // DONNEES = { titre, echelle, assets: [{ nom, images: { origine, neutre, normales, sections } }] }
+  const D = DONNEES || { titre: "sprite", echelle: 6, assets: [] };
+  const $ = (id) => document.getElementById(id);
+  document.title = D.titre + " - eclairage";
+  $("titre").textContent = D.titre + " - test d'eclairage";
 
-  const canvas = document.getElementById("c");
+  const canvas = $("c");
   const gl = canvas.getContext("webgl", { premultipliedAlpha: false, antialias: false });
-  if (!gl) { document.getElementById("erreur").style.display = "flex"; return; }
+  if (!gl) { $("erreur").style.display = "flex"; return; }
 
-  const VS = "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }";
+  const VS = `
+attribute vec2 p;
+uniform vec4 uRect;     // x, y, largeur, hauteur en px ecran (y vers le bas)
+uniform vec2 uCanvas;
+void main() {
+  vec2 q = uRect.xy + p * uRect.zw;
+  gl_Position = vec4(q.x / uCanvas.x * 2.0 - 1.0, 1.0 - q.y / uCanvas.y * 2.0, 0.0, 1.0);
+}`;
   const FS = `
 precision highp float;
 uniform sampler2D uNeutre, uNormales, uOrigine, uSections;
@@ -126,10 +142,10 @@ uniform vec2 uTaille;      // taille du sprite (px du sprite)
 uniform vec2 uCanvas;      // taille du canvas (px ecran)
 uniform vec2 uOrigineEcr;  // coin haut-gauche du sprite (px ecran, y vers le bas)
 uniform float uEchelle;    // px ecran par px du sprite (entier)
-uniform float uMode;       // 0 eclaire, 1 origine, 2 sections, 3 normales
+uniform float uMode;       // 0 eclaire, 1 origine, 2 sections, 3 normales, 9 disques des lumieres
 uniform float uPaliers;    // 0 = lisse
 uniform float uAmbiante, uHauteur, uPortee, uIntensite;
-uniform vec3 uL1, uL2;     // position (px du sprite, y vers le bas) + rien
+uniform vec2 uL1, uL2;     // lumieres en px ecran
 uniform vec3 uC1, uC2;     // couleurs
 uniform float uN;          // nombre de lumieres
 uniform float uRayonDisque;
@@ -150,39 +166,36 @@ vec3 recu(vec3 n, vec2 t, vec2 lp) {
 
 void main() {
   vec2 fc = vec2(gl_FragCoord.x, uCanvas.y - gl_FragCoord.y);
-  vec3 fond = vec3(0.051, 0.043, 0.102);
-  vec4 col = vec4(fond, 1.0);
-  vec2 t = floor((fc - uOrigineEcr) / uEchelle);
-  if (t.x >= 0.0 && t.y >= 0.0 && t.x < uTaille.x && t.y < uTaille.y) {
-    vec2 uv = (t + 0.5) / uTaille;
-    vec4 base = texture2D(uNeutre, uv);
-    vec4 o = texture2D(uOrigine, uv);
-    float a = uMode > 0.5 && uMode < 1.5 ? o.a : base.a;
-    if (a > 0.5) {
-      vec3 c;
-      if (uMode > 2.5) c = texture2D(uNormales, uv).rgb;
-      else if (uMode > 1.5) c = texture2D(uSections, uv).rgb;
-      else if (uMode > 0.5) c = o.rgb;
-      else {
-        vec3 n = normalize(texture2D(uNormales, uv).rgb * 2.0 - 1.0);
-        vec2 tc = t + 0.5;
-        vec3 l = vec3(uAmbiante) + uC1 * uIntensite * recu(n, tc, uL1.xy);
-        if (uN > 1.5) l += uC2 * uIntensite * recu(n, tc, uL2.xy);
-        c = base.rgb * l;
-      }
-      col = vec4(c, 1.0);
+  if (uMode > 8.5) {
+    for (int i = 0; i < 2; i++) {
+      if (float(i) >= uN) break;
+      vec2 lp = i == 0 ? uL1 : uL2;
+      vec3 lc = i == 0 ? uC1 : uC2;
+      float r = length(fc - lp);
+      if (r < uRayonDisque) { gl_FragColor = vec4(mix(lc, vec3(1.0), 0.35), 1.0); return; }
+      if (r < uRayonDisque + 1.5) { gl_FragColor = vec4(vec3(0.05), 1.0); return; }
     }
+    discard;
   }
-  // disques des lumieres (repere ecran)
-  for (int i = 0; i < 2; i++) {
-    if (float(i) >= uN) break;
-    vec2 lp = i == 0 ? uL1.xy : uL2.xy;
-    vec3 lc = i == 0 ? uC1 : uC2;
-    float r = length(fc - (uOrigineEcr + lp * uEchelle));
-    if (r < uRayonDisque) col.rgb = mix(lc, vec3(1.0), 0.35);
-    else if (r < uRayonDisque + 1.5) col.rgb = vec3(0.05);
+  vec2 t = floor((fc - uOrigineEcr) / uEchelle);
+  if (t.x < 0.0 || t.y < 0.0 || t.x >= uTaille.x || t.y >= uTaille.y) discard;
+  vec2 uv = (t + 0.5) / uTaille;
+  vec4 base = texture2D(uNeutre, uv);
+  vec4 o = texture2D(uOrigine, uv);
+  float a = uMode > 0.5 && uMode < 1.5 ? o.a : base.a;
+  if (a < 0.5) discard;
+  vec3 c;
+  if (uMode > 2.5) c = texture2D(uNormales, uv).rgb;
+  else if (uMode > 1.5) c = texture2D(uSections, uv).rgb;
+  else if (uMode > 0.5) c = o.rgb;
+  else {
+    vec3 n = normalize(texture2D(uNormales, uv).rgb * 2.0 - 1.0);
+    vec2 tc = t + 0.5;
+    vec3 l = vec3(uAmbiante) + uC1 * uIntensite * recu(n, tc, (uL1 - uOrigineEcr) / uEchelle);
+    if (uN > 1.5) l += uC2 * uIntensite * recu(n, tc, (uL2 - uOrigineEcr) / uEchelle);
+    c = base.rgb * l;
   }
-  gl_FragColor = col;
+  gl_FragColor = vec4(c, 1.0);
 }`;
 
   function shader(type, src) {
@@ -198,23 +211,23 @@ void main() {
   gl.useProgram(prog);
   const buf = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
   const ap = gl.getAttribLocation(prog, "p");
   gl.enableVertexAttribArray(ap);
   gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
   const U = {};
-  for (const n of ["uNeutre", "uNormales", "uOrigine", "uSections", "uTaille", "uCanvas", "uOrigineEcr",
-    "uEchelle", "uMode", "uPaliers", "uAmbiante", "uHauteur", "uPortee", "uIntensite", "uL1", "uL2",
-    "uC1", "uC2", "uN", "uRayonDisque"]) U[n] = gl.getUniformLocation(prog, n);
+  for (const n of ["uRect", "uNeutre", "uNormales", "uOrigine", "uSections", "uTaille", "uCanvas",
+    "uOrigineEcr", "uEchelle", "uMode", "uPaliers", "uAmbiante", "uHauteur", "uPortee", "uIntensite",
+    "uL1", "uL2", "uC1", "uC2", "uN", "uRayonDisque"]) U[n] = gl.getUniformLocation(prog, n);
+  gl.uniform1i(U.uNeutre, 0); gl.uniform1i(U.uNormales, 1);
+  gl.uniform1i(U.uOrigine, 2); gl.uniform1i(U.uSections, 3);
 
-  const noms = ["neutre", "normales", "origine", "sections"];
-  const unites = { neutre: 0, normales: 1, origine: 2, sections: 3 };
-  let taille = [1, 1];
-  let pretes = 0;
-
-  function texture(nom, img) {
+  // ---- textures de chaque asset
+  const NOMS = ["neutre", "normales", "origine", "sections"];
+  const assets = D.assets.map((a) => ({ nom: a.nom, images: a.images, tex: {}, taille: [1, 1] }));
+  let aCharger = assets.length * NOMS.length;
+  function texture(img) {
     const t = gl.createTexture();
-    gl.activeTexture(gl.TEXTURE0 + unites[nom]);
     gl.bindTexture(gl.TEXTURE_2D, t);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
@@ -223,23 +236,38 @@ void main() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
   }
-  for (const nom of noms) {
-    const img = new Image();
-    img.onload = () => {
-      if (nom === "neutre") taille = [img.width, img.height];
-      texture(nom, img);
-      if (++pretes === noms.length) demarrer();
-    };
-    img.src = D.images[nom] || D.images.origine;
+  for (const a of assets) {
+    for (const nom of NOMS) {
+      const img = new Image();
+      img.onload = () => {
+        if (nom === "neutre") a.taille = [img.width, img.height];
+        a.tex[nom] = texture(img);
+        if (--aCharger === 0) dessiner();
+      };
+      img.src = a.images[nom] || a.images.origine;
+    }
   }
 
-  // ---- etat
-  const $ = (id) => document.getElementById(id);
+  // ---- etat et reglages
   const PRESETS = [["Torche", "#ffb35c"], ["Lune", "#9fb8ff"], ["Blanc", "#ffffff"]];
-  const etat = { mode: 0, lumieres: [[-0.25, 0.3], [1.2, 0.35]] }; // position relative a la taille du sprite
+  // lumieres en fraction de la boite affichee (0,0 = coin haut-gauche, 1,1 = coin bas-droit)
+  const etat = { mode: 0, courant: 0, tous: false, lumieres: [[-0.25, 0.3], [1.2, 0.35]] };
   let echelle = D.echelle || 6;
-  // position de depart reglable dans l'adresse : page.html#l=0.1,0.3 (fraction de la taille du sprite)
+
+  if (assets.length > 1) {
+    $("bloc-assets").hidden = false;
+    $("tous-txt").textContent = "Les " + assets.length + " cote a cote";
+    assets.forEach((a, i) => {
+      const o = document.createElement("option");
+      o.value = i; o.textContent = a.nom; $("asset").appendChild(o);
+    });
+    $("asset").onchange = () => { etat.courant = +$("asset").value; dessiner(); };
+    $("tous").onchange = () => { etat.tous = $("tous").checked; $("asset").disabled = etat.tous; dessiner(); };
+  }
+
+  // reglages de depart dans l'adresse : page.html#l=0.1,0.3&m=2&a=1&tous
   const h = /l=(-?[\d.]+),(-?[\d.]+)/.exec(location.hash);
   if (h) etat.lumieres[0] = [+h[1], +h[2]];
   const hm = /m=(\d)/.exec(location.hash);
@@ -248,9 +276,14 @@ void main() {
     const cb = document.querySelector('input[data-mode="' + hm[1] + '"]');
     if (cb) cb.checked = true;
   }
+  const ha = /a=(\d+)/.exec(location.hash);
+  if (ha && assets[+ha[1]]) { etat.courant = +ha[1]; $("asset").value = ha[1]; }
+  if (/tous/.test(location.hash) && assets.length > 1) {
+    etat.tous = true; $("tous").checked = true; $("asset").disabled = true;
+  }
 
   const sel = $("echelle");
-  for (let k = 2; k <= 12; k++) {
+  for (let k = 1; k <= 12; k++) {
     const o = document.createElement("option");
     o.value = k; o.textContent = "x" + k; if (k === echelle) o.selected = true;
     sel.appendChild(o);
@@ -277,8 +310,8 @@ void main() {
     portee: (v) => v + " px", ambiante: (v) => Math.round(v * 100) + " %" };
   for (const id in affichages) {
     const e = $(id), o = $("o-" + id);
-    const maj = () => { o.textContent = affichages[id](e.value); dessiner(); };
-    e.addEventListener("input", maj); o.textContent = affichages[id](e.value);
+    e.addEventListener("input", () => { o.textContent = affichages[id](e.value); dessiner(); });
+    o.textContent = affichages[id](e.value);
   }
   $("paliers").onchange = dessiner;
   $("l2").onchange = dessiner;
@@ -292,8 +325,24 @@ void main() {
 
   function hex(c) { return [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255); }
 
-  let geo = { ox: 0, oy: 0, s: 1, dpr: 1 };
-  function dessiner() { if (pretes === noms.length) requestAnimationFrame(rendu); }
+  // ---- mise en page : un asset centre, ou tous en ligne poses sur le meme sol
+  const ECART = 12; // px du sprite entre deux assets
+  function disposition() {
+    const liste = etat.tous ? assets : [assets[etat.courant]];
+    const lw = liste.reduce((s, a) => s + a.taille[0], 0) + ECART * (liste.length - 1);
+    const lh = Math.max(...liste.map((a) => a.taille[1]));
+    let x = 0;
+    const places = liste.map((a) => { const p = { a, x, y: lh - a.taille[1] }; x += a.taille[0] + ECART; return p; });
+    return { places, lw, lh };
+  }
+
+  let geo = { ox: 0, oy: 0, s: 1, dpr: 1, lw: 1, lh: 1 };
+  let attente = false;
+  function dessiner() {
+    if (aCharger > 0 || attente) return;
+    attente = true;
+    requestAnimationFrame(() => { attente = false; rendu(); });
+  }
 
   function rendu() {
     const dpr = window.devicePixelRatio || 1;
@@ -301,42 +350,55 @@ void main() {
     const H = Math.max(1, Math.round(canvas.clientHeight * dpr));
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     gl.viewport(0, 0, W, H);
-    const s = Math.max(1, Math.round(echelle * dpr)); // entier en pixels ecran : pixels nets
-    const ox = Math.floor((W - taille[0] * s) / 2), oy = Math.floor((H - taille[1] * s) / 2);
-    geo = { ox, oy, s, dpr };
+    gl.clearColor(0.051, 0.043, 0.102, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    const { places, lw, lh } = disposition();
+    // echelle entiere ; reduite si l'ensemble ne tient pas dans la scene
+    let e = echelle;
+    while (e > 1 && (lw * e > canvas.clientWidth * 0.94 || lh * e > canvas.clientHeight * 0.88)) e--;
+    $("echelle-eff").textContent = e !== echelle ? "(x" + e + " pour tenir)" : "";
+    const s = Math.max(1, Math.round(e * dpr)); // entier en pixels ecran : pixels nets
+    const ox = Math.floor((W - lw * s) / 2), oy = Math.floor((H - lh * s) / 2);
+    geo = { ox, oy, s, dpr, lw, lh };
+    const L = etat.lumieres.map(([fx, fy]) => [ox + fx * lw * s, oy + fy * lh * s]);
     const n2 = $("l2").checked ? 2 : 1;
-    const L = etat.lumieres.map(([x, y]) => [x * taille[0], y * taille[1], 0]);
-    gl.uniform1i(U.uNeutre, 0); gl.uniform1i(U.uNormales, 1);
-    gl.uniform1i(U.uOrigine, 2); gl.uniform1i(U.uSections, 3);
-    gl.uniform2f(U.uTaille, taille[0], taille[1]);
     gl.uniform2f(U.uCanvas, W, H);
-    gl.uniform2f(U.uOrigineEcr, ox, oy);
     gl.uniform1f(U.uEchelle, s);
-    gl.uniform1f(U.uMode, etat.mode);
     gl.uniform1f(U.uPaliers, +$("paliers").value);
     gl.uniform1f(U.uAmbiante, +$("ambiante").value);
     gl.uniform1f(U.uHauteur, +$("hauteur").value);
     gl.uniform1f(U.uPortee, +$("portee").value);
     gl.uniform1f(U.uIntensite, +$("intensite").value);
-    gl.uniform3fv(U.uL1, L[0]); gl.uniform3fv(U.uL2, L[1]);
+    gl.uniform2fv(U.uL1, L[0]); gl.uniform2fv(U.uL2, L[1]);
     gl.uniform3fv(U.uC1, hex($("couleur1").value)); gl.uniform3fv(U.uC2, hex($("couleur2").value));
     gl.uniform1f(U.uN, n2);
     gl.uniform1f(U.uRayonDisque, 6 * dpr);
+    gl.uniform1f(U.uMode, etat.mode);
+    for (const p of places) {
+      NOMS.forEach((nom, i) => { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, p.a.tex[nom]); });
+      const x = ox + p.x * s, y = oy + p.y * s;
+      gl.uniform2f(U.uTaille, p.a.taille[0], p.a.taille[1]);
+      gl.uniform2f(U.uOrigineEcr, x, y);
+      gl.uniform4f(U.uRect, x, y, p.a.taille[0] * s, p.a.taille[1] * s);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    gl.uniform1f(U.uMode, 9);
+    gl.uniform4f(U.uRect, 0, 0, W, H);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
   // ---- deplacement de la lumiere (souris ou doigt)
   let tenue = -1;
-  function versSprite(ev) {
+  function versBoite(ev) {
     const r = canvas.getBoundingClientRect();
     const x = (ev.clientX - r.left) * geo.dpr, y = (ev.clientY - r.top) * geo.dpr;
-    return [(x - geo.ox) / geo.s / taille[0], (y - geo.oy) / geo.s / taille[1]];
+    return [(x - geo.ox) / geo.s / geo.lw, (y - geo.oy) / geo.s / geo.lh];
   }
   canvas.addEventListener("pointerdown", (ev) => {
-    const p = versSprite(ev);
+    const p = versBoite(ev);
     tenue = 0;
     if ($("l2").checked) {
-      const d = etat.lumieres.map(([x, y]) => Math.hypot((x - p[0]) * taille[0], (y - p[1]) * taille[1]));
+      const d = etat.lumieres.map(([x, y]) => Math.hypot((x - p[0]) * geo.lw, (y - p[1]) * geo.lh));
       tenue = d[1] < d[0] ? 1 : 0;
     }
     etat.lumieres[tenue] = p;
@@ -345,15 +407,13 @@ void main() {
   });
   canvas.addEventListener("pointermove", (ev) => {
     if (tenue < 0) return;
-    etat.lumieres[tenue] = versSprite(ev);
+    etat.lumieres[tenue] = versBoite(ev);
     dessiner();
   });
   const lacher = () => { tenue = -1; };
   canvas.addEventListener("pointerup", lacher);
   canvas.addEventListener("pointercancel", lacher);
   window.addEventListener("resize", dessiner);
-
-  function demarrer() { dessiner(); }
 })();
 </script>
 </body>

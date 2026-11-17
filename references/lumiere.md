@@ -12,10 +12,27 @@ La lumiere s'applique par PALIERS (3-4 teintes), pas en degrade lisse : ca reste
     & $py -I scripts/sections.py W/crapaud.png --apercu           # neutre + sections + normales
     & $py -I scripts/sections.py W/crapaud.png --depuis-sections W/crapaud.sections.png  # apres retouche
     & $py -I scripts/viewer.py W/crapaud.png --echelle 6           # page autonome crapaud-lumiere.html
+    # sprites HD du jeu (images peintes reduites par setScale) : ramener d'abord a la taille ecran
+    & $py -I scripts/sections.py agarica/assets/sprites/loup_frames/loup_row0_0.png --echelle-jeu 0.4 --sortie W/loup
+    # plusieurs assets dans UNE page (selecteur + « tous cote a cote ») :
+    & $py -I scripts/viewer.py W/crapaud.png W/loup.png W/grizzly.png W/agarica.png --noms "Crapaud,Loup,Grizzly,Agarica" --out W/assets-lumiere.html
 Options : `--garder dea019,fdfdfd` (couleurs a garder telles quelles), `--rampes "hex,hex;hex,hex"`
 (forcer le regroupement des couleurs en matieres), `--gauche` (versions retournees pour un sprite
 qui regarde a gauche, voir Phaser), `--apercu` (planche : origine, neutre, sections, eclaire a
 gauche, eclaire a droite).
+
+## Sprites HD du jeu (mode « image peinte », `--echelle-jeu`)
+Les sprites actuels du jeu (loup, ours, Agarica...) sont des images peintes de 200-700 px, a
+milliers de couleurs et bords semi-transparents, affichees reduites (`setScale`, constantes de
+`src/entities/Player.js` : WOLF_SCALE 0,4, OURS_SCALE 0,34, HUMAN_SCALE 0,24). Methode retenue :
+on travaille A LA TAILLE VUE EN JEU (rendu fidele, pixels nets ensuite a l'echelle 1) :
+recadrage, reduction Lanczos (alpha premultiplie), alpha net, palette propre de 32 couleurs en
+Lab (k-moyennes ; les couleurs rares tres differentes, comme un oeil vert, gardent leur teinte),
+puis la meme chaine que le pixel art. `<sortie>.png` = ce sprite reduit (a charger dans le jeu
+a l'echelle 1 a la place du HD, avec ses normales). Reglages propres a ce mode : ombrage
+d'origine moins suivi, nettoyage des zones plus fort. Une rampe ne couvre pas plus de 48 de
+luminosite (L*) : peau claire, tunique beige et pantalon restent des matieres separees.
+Travailler sur l'image HD d'origine donnerait des zones trop fines, perdues a la reduction.
 
 ## Comment le decoupage est fait
 1. Matieres : les couleurs voisines dans l'image, de meme teinte et meme saturation relative,
@@ -68,11 +85,13 @@ Meme famille de teinte = meme direction (clair = incline, fonce = rasant).
    reglages a la main, apercu de lumiere) ; garder alors nos paliers cote jeu.
 
 ## Page de test
-`<nom>-lumiere.html` (autonome, double-clic, Chrome) : le sprite au centre a echelle entiere,
+`<nom>-lumiere.html` ou, pour plusieurs assets, `assets-lumiere.html` (selecteur d'asset et case
+« tous cote a cote » : meme echelle, meme lumiere, poses sur le meme sol, tailles relatives du
+jeu). Autonome, double-clic, Chrome : le sprite au centre a echelle entiere,
 lumiere a glisser (souris ou doigt), WebGL sans bibliotheque. Reglages : hauteur, intensite,
 portee, ambiante, couleur (torche, lune, blanc), paliers 2-5 ou lisse, 2e lumiere, affichage du
-sprite d'origine / des sections / des normales a la place. `#l=0.1,0.3` dans l'adresse place la
-lumiere au depart (fraction de la taille du sprite).
+sprite d'origine / des sections / des normales a la place. Adresse : `#l=0.1,0.3` (lumiere au
+depart, fraction de la boite affichee), `&a=2` (asset), `&tous`, `&m=2` (affichage).
 
 ## Dans le jeu (Phaser 3.80.1, charge par CDN dans index.html d'agarica)
 Light2D existe en 3.80 : carte de normales jointe a la texture, lumieres de scene.

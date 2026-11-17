@@ -21,6 +21,9 @@ Usage :
   --apercu : <nom>.apercu.png (origine | neutre | sections | eclaire gauche | eclaire droite, x4)
   --gauche : <nom>.neutre-gauche.png + <nom>.normales-gauche.png (sprite retourne pour regarder a
              gauche, rouge des normales inverse ; flipX de Phaser 3.80 ne corrige pas les normales)
+  Image peinte (sprite HD du jeu, affiche reduit par setScale) :
+  python -I sections.py FRAME_HD.png --echelle-jeu 0.4 [--couleurs 24] --sortie W/loup
+  -> W/loup.png (taille reelle a l'ecran, alpha net, palette reduite) puis les memes sorties.
 """
 import argparse, math, os, sys
 from collections import Counter, deque
@@ -35,7 +38,8 @@ from forge_lib import lab, N4, N8
 DIRS = [("droite", 0), ("haut-droite", 45), ("haut", 90), ("haut-gauche", 135),
         ("gauche", 180), ("bas-gauche", 225), ("bas", 270), ("bas-droite", 315)]
 TILT_INC, TILT_RAS = 40.0, 68.0
-GBLUR, GPAD = 6.0, 16  # flou de la silhouette pour le bombe global (px)
+GBLUR_MIN, GBLUR_REL, GPAD = 4.0, 0.1, 12  # flou de la silhouette (bombe global) = max(4, 0,1 x petit cote) ; marge des parties
+RAMP_SPAN = 48.0  # etendue max de luminosite (L*) d'une rampe
 W_GLOBAL, W_PART, W_SHADE = 0.7, 0.55, 0.3  # poids : volume d'ensemble, bombe des parties, ombrage d'origine
 
 
@@ -114,15 +118,25 @@ def cluster_ramps(colors, counts, adj, dark, protected, forced):
     pool = [c for c in colors if c not in dark and c not in protected]
     total = sum(counts[c] for c in pool) or 1
     rare = max(6, int(0.006 * total))
-    pairs = sorted(((v, p) for p, v in adj.items() if p[0] in pool and p[1] in pool), reverse=True)
-    for v, (a, b) in pairs:
+    # etendue de luminosite de chaque rampe : une rampe de pixel art couvre ~3-5 valeurs ; au-dela
+    # de RAMP_SPAN on relie deux matieres de meme teinte (peau claire et tunique beige, pantalon)
+    span = {c: (labs[c][0], labs[c][0]) for c in colors}
+    pairs = sorted(((v / math.sqrt(counts[p[0]] * counts[p[1]]), p) for p, v in adj.items()
+                    if p[0] in pool and p[1] in pool), reverse=True)
+    for s, (a, b) in pairs:
         if counts[a] < rare or counts[b] < rare:
             continue
-        s = v / math.sqrt(counts[a] * counts[b])
         fa, fb = feat[a], feat[b]
         grey = fa[2] < 8 and fb[2] < 8
         if s > 0.06 and (grey or (hue_diff(fa[0], fb[0]) < 15 and abs(fa[1] - fb[1]) < 0.17)):
-            parent[find(a)] = find(b)
+            ra, rb = find(a), find(b)
+            if ra == rb:
+                continue
+            lo, hi = min(span[ra][0], span[rb][0]), max(span[ra][1], span[rb][1])
+            if hi - lo > RAMP_SPAN:
+                continue
+            parent[ra] = rb
+            span[rb] = (lo, hi)
     # couleurs rares : rejoignent la rampe avec laquelle elles se touchent le plus
     for c in sorted(pool, key=lambda c: counts[c]):
         if counts[c] >= rare:
@@ -224,7 +238,7 @@ def merge_small(codes, minsize, keep):
 
 
 # ---------------------------------------------------------------- programme principal
-def analyse(im, garder=(), rampes=()):
+def analyse(im, garder=(), rampes=(), peint=False):
     w, h = im.size
     px = im.load()
     opq = {(x, y) for y in range(h) for x in range(w) if px[x, y][3] >= 128}
@@ -410,13 +424,15 @@ def analyse(im, garder=(), rampes=()):
 
     # volume d'ensemble : la silhouette floutee est une colline ; sa pente = bombe global
     # (le dos regarde vers le haut, le ventre vers le bas, le museau vers l'avant)
-    mask = Image.new("L", (w + 2 * GPAD, h + 2 * GPAD), 0)
+    gblur = max(GBLUR_MIN, GBLUR_REL * min(w, h))
+    gp = int(2.5 * gblur) + 2
+    mask = Image.new("L", (w + 2 * gp, h + 2 * gp), 0)
     for (x, y) in opq:
-        mask.putpixel((x + GPAD, y + GPAD), 255)
-    hill = mask.filter(ImageFilter.GaussianBlur(GBLUR)).load()
+        mask.putpixel((x + gp, y + gp), 255)
+    hill = mask.filter(ImageFilter.GaussianBlur(gblur)).load()
     grad = {}
     for (x, y) in opq:
-        X, Y = x + GPAD, y + GPAD
+        X, Y = x + gp, y + gp
         grad[(x, y)] = (-(hill[X + 1, Y] - hill[X - 1, Y]) / 2.0, (hill[X, Y + 1] - hill[X, Y - 1]) / 2.0)
     gmax = sorted(math.hypot(*v) for v in grad.values())[int(len(grad) * 0.97)] or 1.0
 
@@ -447,8 +463,10 @@ def analyse(im, garder=(), rampes=()):
         px_, py_ = pgrad[p]
         s = 0.6 * soff[p] + 0.5 * reg_off[r] / reg_n[r]
         s = max(-1.2, min(1.2, s))
-        nx = gx / gn * gk + W_PART * px_ + W_SHADE * s * lx
-        ny = gy / gn * gk + W_PART * py_ + W_SHADE * s * ly
+        wp = W_PART * min(1.0, dmax[r] / 3.0)   # petite partie : bombe propre attenue (moins de bruit)
+        ws = W_SHADE * (0.6 if peint else 1.0)  # image peinte : ombrage riche, on le suit moins
+        nx = gx / gn * gk + wp * px_ + ws * s * lx
+        ny = gy / gn * gk + wp * py_ + ws * s * ly
         codes[p] = quantize(nx, ny)
     # contour exterieur : rasant, tourne vers l'exterieur ; traits interieurs : comme leurs voisins
     outline = set()
@@ -480,8 +498,8 @@ def analyse(im, garder=(), rampes=()):
         if p not in regall:
             regall[p] = "o" if p in outline else "l"
     keep = outline
-    codes = mode_filter(codes, regall, keep, iters=3)
-    codes = merge_small(codes, 6, keep)
+    codes = mode_filter(codes, regall, keep, iters=5 if peint else 3)
+    codes = merge_small(codes, 10 if peint else 6, keep)
 
     # neutre : chaque pixel prend la couleur de base de sa rampe ; les grains isoles (1-2 px d'une
     # autre matiere, ex. eclat de verrue) prennent la matiere qui les entoure
@@ -604,6 +622,80 @@ def mirror(stem):
     return out
 
 
+def _kmeans(items, k, iters=12):
+    """k-moyennes ponderees en Lab. items = [(lab, poids, rgb)] ; init deterministe (k-means++ glouton)."""
+    if len(items) <= k:
+        return [it[0] for it in items]
+    cents = [max(items, key=lambda it: it[1])[0]]
+    dist = [math.dist(it[0], cents[0]) ** 2 * it[1] for it in items]
+    while len(cents) < k:
+        i = max(range(len(items)), key=lambda j: dist[j])
+        cents.append(items[i][0])
+        dist = [min(d, math.dist(it[0], cents[-1]) ** 2 * it[1]) for d, it in zip(dist, items)]
+    for _ in range(iters):
+        acc = [[0.0, 0.0, 0.0, 0.0] for _ in cents]
+        for l, wgt, _ in items:
+            j = min(range(len(cents)), key=lambda c: math.dist(l, cents[c]))
+            a = acc[j]
+            a[0] += l[0] * wgt; a[1] += l[1] * wgt; a[2] += l[2] * wgt; a[3] += wgt
+        cents = [(a[0] / a[3], a[1] / a[3], a[2] / a[3]) if a[3] else c for a, c in zip(acc, cents)]
+    return cents
+
+
+def palette_lab(rgbs, ncol):
+    """Palette propre de l'image en Lab (separe mieux peau / tissu clair que le median cut RGB) ;
+    les couleurs rares mais tres differentes (oeil vert, reflet) recoivent leurs propres teintes.
+    Renvoie {rgb d'origine -> rgb de palette}, la teinte de palette etant la moyenne RGB du groupe."""
+    cnt = Counter(rgbs)
+    # pre-regroupement par cases de 4 niveaux (accelere les k-moyennes)
+    bins = {}
+    for c, v in cnt.items():
+        key = (c[0] >> 2, c[1] >> 2, c[2] >> 2)
+        b = bins.setdefault(key, [0, 0, 0, 0])
+        b[0] += c[0] * v; b[1] += c[1] * v; b[2] += c[2] * v; b[3] += v
+    items = []
+    for b in bins.values():
+        rgb = (round(b[0] / b[3]), round(b[1] / b[3]), round(b[2] / b[3]))
+        items.append((lab(rgb), b[3], rgb))
+    cents = _kmeans(items, ncol)
+    near = lambda l: min(cents, key=lambda c: math.dist(l, c))
+    out = [it for it in items if math.dist(it[0], near(it[0])) > 16]
+    if out:
+        cents += _kmeans(out, min(4, len(out)))
+    # couleur finale de chaque groupe : moyenne RGB ponderee de ses membres
+    groups = {}
+    for l, wgt, rgb in items:
+        j = min(range(len(cents)), key=lambda c: math.dist(l, cents[c]))
+        g = groups.setdefault(j, [0, 0, 0, 0])
+        g[0] += rgb[0] * wgt; g[1] += rgb[1] * wgt; g[2] += rgb[2] * wgt; g[3] += wgt
+    col = {j: (round(g[0] / g[3]), round(g[1] / g[3]), round(g[2] / g[3])) for j, g in groups.items()}
+    remap = {}
+    for c in cnt:
+        l = lab(c)
+        j = min(col, key=lambda k: math.dist(l, cents[k]))
+        remap[c] = col[j]
+    return remap
+
+
+def peint_vers_jeu(im, echelle, ncol=32):
+    """Mode « image peinte » : sprite HD (milliers de couleurs, bords semi-transparents) ramene a sa
+    taille d'affichage dans le jeu (setScale), alpha net, palette reduite sans tramage. Le resultat
+    est un sprite natif (1 px = 1 px a l'ecran du jeu) que le reste de la chaine traite comme le
+    crapaud pixel art."""
+    bb = im.getchannel("A").point(lambda v: 255 if v >= 24 else 0).getbbox()
+    if bb:
+        im = im.crop(bb)
+    w, h = max(1, round(im.width * echelle)), max(1, round(im.height * echelle))
+    small = im.convert("RGBa").resize((w, h), Image.LANCZOS).convert("RGBA")
+    px = small.load()
+    opq = [(x, y) for y in range(h) for x in range(w) if px[x, y][3] >= 128]
+    remap = palette_lab([px[p][:3] for p in opq], ncol)
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for p in opq:
+        out.putpixel(p, remap[px[p][:3]] + (255,))
+    return out.crop(out.getchannel("A").getbbox())
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("sprite")
@@ -612,16 +704,25 @@ def main():
     ap.add_argument("--rampes", default="", help='forcer des rampes : "hex,hex;hex,hex"')
     ap.add_argument("--apercu", action="store_true")
     ap.add_argument("--gauche", action="store_true")
+    ap.add_argument("--echelle-jeu", type=float, default=0.0,
+                    help="mode image peinte : echelle d'affichage dans le jeu (setScale, ex. 0.4) ; "
+                         "le sprite HD est d'abord ramene a cette taille")
+    ap.add_argument("--couleurs", type=int, default=32, help="mode image peinte : nombre de couleurs")
+    ap.add_argument("--sortie", default="", help="chemin de base des sorties (defaut : celui du sprite)")
     a = ap.parse_args()
-    stem = os.path.splitext(a.sprite)[0]
+    stem = os.path.splitext(a.sortie or a.sprite)[0]
     im = Image.open(a.sprite).convert("RGBA")
+    if a.echelle_jeu > 0:
+        im = peint_vers_jeu(im, a.echelle_jeu, a.couleurs)
+        im.save(stem + ".png")
+        print(stem + ".png", "(%d x %d, %d couleurs)" % (im.width, im.height, len(im.getcolors(1 << 16))))
     if a.depuis_sections:
         p, used = normals_from_sections(a.depuis_sections, stem)
         print(p)
         print("sections lues :", ", ".join(sorted(used)))
     else:
         opq, neutral, codes, info = analyse(im, [g for g in a.garder.split(",") if g.strip()],
-                                            [r for r in a.rampes.split(";") if r.strip()])
+                                            [r for r in a.rampes.split(";") if r.strip()], peint=a.echelle_jeu > 0)
         for p in save_maps(im, opq, neutral, codes, stem).values():
             print(p)
         print("rampes (couleur neutre <- couleurs) :")
