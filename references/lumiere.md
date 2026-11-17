@@ -216,8 +216,10 @@ lumiere, memes paliers) ; le contre-jour choisit seulement quelles sections et c
     e     = contre x m^ex x sens x att x clamp(-z / 10)  ->  lumiere = palier(e)
     faces : m = 0 -> ambiance seule
 
-Contour et traits sombres : eclairage de la section voisine la plus eclairee, un palier plus bas,
-x 0,6 : il s'eclaircit un peu avec la section, sans devenir une bande. Les cartes de sections ne
+Contour : aucun traitement special du bord dans le shader. Dans sections.py, chaque pixel qui
+touche le vide HERITE de la section des pixels interieurs voisins (heriter_bord) : le contour fait
+partie de la section qu'il borde ; un contour noir reste sa couleur sombre x l'eclairage de cette
+section, donc toujours plus sombre qu'elle. Les cartes de sections ne
 changent pas. Dans Phaser : meme calcul dans le pipeline personnalise (profondeur par lampe via
 uLightZ ci-dessus ; la texture de geometrie en 3e texture pour savoir si la lampe est cachee).
 

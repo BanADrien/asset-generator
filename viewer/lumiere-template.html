@@ -282,30 +282,8 @@ void main() {
       l = vec3(uAmbiante) + uC1 * uIntensite * palier(min(contreJour(n, tc, l1), 1.0));
       if (uN > 1.5) l += uC2 * uIntensite * palier(min(contreJour(n, tc, l2), 1.0));
       c = base.rgb * l;
-      // contour et traits sombres : eclairage de la section voisine la plus eclairee, un palier
-      // plus bas et assombri (jamais la couleur de la lampe plaquee)
-      if (dot(base.rgb, vec3(0.3, 0.59, 0.11)) < 0.12) {
-        float best = 0.0;
-        vec3 bc = vec3(0.0);
-        for (int dy = -1; dy <= 1; dy++) {
-          for (int dx = -1; dx <= 1; dx++) {
-            vec2 q = ts + vec2(float(dx), float(dy));
-            if (q.x < 0.0 || q.y < 0.0 || q.x >= uTaille.x || q.y >= uTaille.y) continue;
-            vec2 qu = (q + 0.5) / uTaille;
-            vec4 b2 = texture2D(uNeutre, qu);
-            if (b2.a < 0.5 || dot(b2.rgb, vec3(0.3, 0.59, 0.11)) < 0.12) continue;
-            vec3 n3 = texture2D(uNormales, qu).rgb * 2.0 - 1.0;
-            if (uFlip > 0.5) n3.x = -n3.x;
-            n3 = normalize(n3);
-            vec2 tq = vec2(uFlip > 0.5 ? uTaille.x - 1.0 - q.x : q.x, q.y) + 0.5;
-            float e = palier(min(contreJour(n3, tq, l1), 1.0));
-            if (e > best) { best = e; bc = b2.rgb; }
-          }
-        }
-        float pas = uPaliers < 1.5 ? 0.34 : 1.0 / (uPaliers - 1.0);
-        float lv = max(best - pas, 0.0);
-        if (lv > 0.0) c = max(c, bc * uC1 * uIntensite * lv * 0.6);
-      }
+      // contour noir : sa couleur sombre x l'eclairage de SA section (heritee de la section qu'il
+      // borde, sections.py) : toujours plus sombre qu'elle, aucun traitement special du bord
     }
   }
   gl_FragColor = vec4(c, 1.0);

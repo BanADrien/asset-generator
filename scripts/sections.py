@@ -193,6 +193,23 @@ def nearest_vectors(w, h, is_border, cand, R=8):
     return out
 
 
+def heriter_bord(codes, opq):
+    """Le bord de la silhouette n'a pas d'orientation propre : chaque pixel qui touche le vide prend
+    la section majoritaire des pixels INTERIEURS voisins (rayon 1, sinon 2, sinon 3) : le contour
+    fait partie de la section qu'il borde (pas d'anneau rasant tourne vers l'exterieur, qui
+    s'allumait en bande en contre-jour). Les parties trop fines (tout en bord) gardent la leur."""
+    ring = {p for p in opq if any((p[0] + dx, p[1] + dy) not in opq for dx, dy in N8)}
+    new = dict(codes)
+    for p in ring:
+        for r in (1, 2, 3):
+            cnt = Counter(codes[q] for q in ((p[0] + dx, p[1] + dy) for dx in range(-r, r + 1) for dy in range(-r, r + 1))
+                          if q in opq and q not in ring)
+            if cnt:
+                new[p] = cnt.most_common(1)[0][0]
+                break
+    return new
+
+
 def mode_filter(codes, region, keep, iters=2):
     """Filtre majoritaire 3x3 a l'interieur de chaque partie (bords de zones nets, pas de pixels isoles)."""
     for _ in range(iters):
@@ -508,6 +525,7 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
     keep = outline
     codes = mode_filter(codes, regall, keep, iters=5 if peint else 3)
     codes = merge_small(codes, 10 if peint else 6, keep)
+    codes = heriter_bord(codes, opq)
 
     # neutre : chaque pixel prend la couleur de base de sa rampe ; les grains isoles (1-2 px d'une
     # autre matiere, ex. eclat de verrue) prennent la matiere qui les entoure
@@ -992,6 +1010,7 @@ def animation(paths, stem, echelle=0.0, ncol=32, fps=12, vitesse=0, garder=(), r
     fc, avant, apres = lisser_temps(fc, fmat, fkeep)
     for _ in range(3):
         fc, _, apres = lisser_temps(fc, fmat, fkeep)
+    fc = [heriter_bord(c, set(c)) for c in fc]
     names = []
     for i, c in enumerate(canv):
         fs = f"{stem}_{i}"
