@@ -92,16 +92,8 @@
       </div>
       <label class="r" title="Position de la lumiere par rapport au plan du sprite : negatif = derriere (contre-jour, seuls les bords tournes vers elle s'allument), 0 = dans le plan (rasant), positif = devant.">Profondeur (&minus; derriere / + devant) <output id="o-hauteur"></output>
         <input type="range" id="hauteur" min="-60" max="60" step="1" value="8"></label>
-      <div class="ligne"><span>Style de contre-jour</span>
-        <select id="style"><option value="0" selected>Lisere pixel art</option><option value="1">Couronne</option></select></div>
-      <label class="r" title="Lumiere derriere : force du lisere (selectif : le contour proche de la lampe s'allume, le contour noir revient plus loin).">Contre-jour <output id="o-contre"></output>
-        <input type="range" id="contre" min="0" max="4" step="0.1" value="1.8"></label>
-      <div class="ligne"><span>Degrade du lisere</span>
-        <select id="epais"><option value="1">1 px</option><option value="2" selected>2 px</option><option value="3">3 px</option></select></div>
-      <label class="r" title="Couronne : les parties fines (oreilles, meches, bord de cape, doigts) laissent passer la lumiere, teintee par leur matiere.">Translucidite <output id="o-trans"></output>
-        <input type="range" id="trans" min="0" max="2" step="0.1" value="1"></label>
-      <label class="r" title="Couronne : lueur derriere la silhouette, en anneaux de pixels nets.">Halo <output id="o-halo"></output>
-        <input type="range" id="halo" min="0" max="3" step="0.1" value="1.6"></label>
+      <label class="r" title="Lumiere derriere : intensite. Les SECTIONS rasantes du bord tournees dans le bon sens s'allument (couleur de la matiere x lumiere, memes paliers) ; la portee regle jusqu'ou la lumiere gagne le long du contour et vers l'interieur.">Contre-jour <output id="o-contre"></output>
+        <input type="range" id="contre" min="0" max="3" step="0.1" value="1.5"></label>
       <label class="r">Intensite <output id="o-intensite"></output>
         <input type="range" id="intensite" min="0" max="2" step="0.05" value="1"></label>
       <label class="r">Portee <output id="o-portee"></output>
@@ -166,8 +158,6 @@ void main() {
 precision highp float;
 uniform sampler2D uNeutre, uNormales, uOrigine, uSections, uGeo;
 uniform float uPad;        // marge de la texture de geometrie (px du sprite)
-uniform float uStyle;      // contre-jour : 0 = lisere pixel art, 1 = couronne
-uniform float uTrans, uHalo;
 uniform vec2 uTaille;      // taille du sprite (px du sprite)
 uniform vec2 uCanvas;      // taille du canvas (px ecran)
 uniform vec2 uOrigineEcr;  // coin haut-gauche du sprite (px ecran, y vers le bas)
@@ -180,7 +170,6 @@ uniform vec3 uC1, uC2;     // couleurs
 uniform float uN;          // nombre de lumieres
 uniform float uRayonDisque;
 uniform float uContre;     // force du lisere de contre-jour (lumiere derriere, z < 0)
-uniform float uEpais;      // degrade du lisere vers l'interieur : 1 a 3 px
 uniform float uDisques;    // passe des disques : 0 = lumieres derriere (avant les sprites), 1 = devant
 uniform float uFlip;       // 1 = sprite retourne : image en miroir ET normal.x inverse (correction du flipX)
 
@@ -208,46 +197,36 @@ vec3 recu(vec3 n, vec2 t, vec2 lp) {
   return vec3(palier(diff * att));
 }
 
-// contre-jour d'une lampe derriere (z < 0) sur un pixel, avant quantification :
-//   sc = -z / d3 : diffusion vers l'avant (fort juste derriere, chute vite en s'eloignant : sc^2)
-//   att = portee ; w = 0,5 + 0,5 |n2 . direction de la lampe| ; parties fines renforcees
-// Formule continue (pas de test « lampe cachee ») : cachee au centre -> couronne d'intensite
-// variable ; decalee -> le contour proche fort, puis le contour noir revient.
-float contreJour(vec3 n, vec2 t, vec2 lp, float th) {
+// CONTRE-JOUR PAR LES SECTIONS (lampe derriere, z < 0). Pas de lisere ni de bande ajoutee : on
+// eclaire les sections du sprite comme pour une lampe devant (matiere x lumiere, memes paliers) ;
+// le contre-jour decide seulement QUELLES sections recoivent la lumiere et combien.
+//   bord   = |n.xy| : 0 pour la face, 0,64 incline, 0,93 rasant ; la portee regle l'exposant :
+//            petite portee -> seules les rasantes ; grande portee -> les inclinees aussi
+//   sens   = la section regarde vers la lampe (lampe hors silhouette) ou a l'oppose (lampe
+//            cachee derriere le sprite) ; melange continu selon la profondeur de la lampe dans
+//            la silhouette (texture de geometrie)
+//   portee = attenuation par la distance 2D lampe-pixel (rayon = portee x 0,3)
+float cache(vec2 lp) {
+  if (lp.x < 0.0 || lp.y < 0.0 || lp.x >= uTaille.x || lp.y >= uTaille.y) return 0.0;
+  vec2 q = floor(lp);
+  if (uFlip > 0.5) q.x = uTaille.x - 1.0 - q.x;
+  return clamp(geoAt(q).r / 3.0, 0.0, 1.0);
+}
+
+float contreJour(vec3 n, vec2 t, vec2 lp) {
   vec2 dl = vec2(lp.x - t.x, t.y - lp.y);
   float d2 = length(dl);
-  float d3 = sqrt(d2 * d2 + uHauteur * uHauteur);
-  float sc = -uHauteur / d3;
-  float att = clamp(1.0 - (d3 * d3) / (uPortee * uPortee), 0.0, 1.0);
-  vec2 n2 = length(n.xy) > 0.01 ? normalize(n.xy) : vec2(0.0);
-  float w = 0.5 + 0.5 * abs(dot(n2, dl / max(d2, 0.001)));
-  float fin = clamp((5.0 - th) / 4.0, 0.0, 1.0);
-  return uContre * sc * sc * att * w * (1.0 + 0.8 * fin);
-}
-
-// translucidite (couronne) : parties fines, d'autant plus que la lampe est proche derriere
-float translucide(vec2 t, vec2 lp, float th) {
-  vec2 dl = vec2(lp.x - t.x, t.y - lp.y);
-  float d3 = sqrt(dot(dl, dl) + uHauteur * uHauteur);
-  float sc = -uHauteur / d3;
-  float att = clamp(1.0 - (d3 * d3) / (uPortee * uPortee), 0.0, 1.0);
-  float fin = clamp((6.0 - th) / 5.0, 0.0, 1.0);
-  return min(floor(uTrans * sc * sc * att * fin * 2.0), 2.0) / 2.0;
-}
-
-// applique le lisere d'une lampe : pixel exterieur = couleur de la lampe, puis matiere eclaircie
-// et teintee sur uEpais px vers l'interieur, quantifie (q = 0..3) ; ailleurs rien (contour noir)
-vec3 lisere(vec3 c, vec3 base, vec3 n, vec2 t, vec2 lp, vec3 lc, vec3 g) {
-  float q = min(floor(contreJour(n, t, lp, g.g) * 3.0), 3.0);
-  float D = g.r;
-  vec3 L = lc * uIntensite;
-  if (D < 1.5 && q >= 1.0) return mix(c, L, q >= 2.0 ? 0.9 : 0.6);
-  bool sombre = dot(base, vec3(0.3, 0.59, 0.11)) < 0.12;
-  if (D < 2.5 && D > 1.5 && uEpais >= 2.0 && q >= 2.0)
-    return max(c, sombre ? L * 0.45 : base * L * (q >= 3.0 ? 2.2 : 1.7));
-  if (D < 3.5 && D > 2.5 && uEpais >= 3.0 && q >= 3.0)
-    return max(c, sombre ? L * 0.3 : base * L * 1.5);
-  return c;
+  float m = length(n.xy);
+  if (m < 0.05) return 0.0;
+  vec2 n2 = n.xy / m;
+  vec2 u = dl / max(d2, 0.001);
+  float h = cache(lp);
+  float sens = mix(max(dot(n2, u), 0.0), max(dot(n2, -u), 0.0), h);
+  float R = max(uPortee * 0.3, 4.0);
+  float att = clamp(1.0 - (d2 * d2) / (R * R), 0.0, 1.0);
+  float ex = mix(3.0, 0.8, clamp((uPortee - 20.0) / 380.0, 0.0, 1.0));
+  float prof = clamp(-uHauteur / 10.0, 0.0, 1.0);   // continu avec la lampe dans le plan
+  return uContre * pow(m, ex) * sens * att * prof;
 }
 
 void main() {
@@ -275,30 +254,6 @@ void main() {
     return;
   }
   vec2 t = floor((fc - uOrigineEcr) / uEchelle);
-  if (uMode > 7.5) {
-    // halo de la couronne, dans le FOND derriere la silhouette : anneaux de pixels nets
-    if (t.x < -uPad || t.y < -uPad || t.x >= uTaille.x + uPad || t.y >= uTaille.y + uPad) discard;
-    vec2 th_ = t;
-    if (uFlip > 0.5) th_.x = uTaille.x - 1.0 - t.x;
-    float O = geoAt(th_).b;
-    if (O < 0.5 || O > 4.5) discard;
-    vec4 o = vec4(0.0);
-    for (int i = 0; i < 2; i++) {
-      if (float(i) >= uN) break;
-      vec2 lp = ((i == 0 ? uL1 : uL2) - uOrigineEcr) / uEchelle;
-      vec3 lc = i == 0 ? uC1 : uC2;
-      vec2 dl = lp - (t + 0.5);
-      float d3 = sqrt(dot(dl, dl) + uHauteur * uHauteur);
-      float sc = -uHauteur / d3;
-      float att = clamp(1.0 - (d3 * d3) / (uPortee * uPortee), 0.0, 1.0);
-      float h = uHalo * sc * sc * att * (1.0 - (O - 1.0) / 4.0);
-      float lev = min(floor(h * 3.0), 3.0) / 3.0;
-      if (lev > o.a / 0.7) o = vec4(lc, lev * 0.7);
-    }
-    if (o.a <= 0.0) discard;
-    gl_FragColor = o;
-    return;
-  }
   if (t.x < 0.0 || t.y < 0.0 || t.x >= uTaille.x || t.y >= uTaille.y) discard;
   vec2 ts = t;
   if (uFlip > 0.5) ts.x = uTaille.x - 1.0 - t.x;
@@ -317,22 +272,40 @@ void main() {
     n = normalize(n);
     vec2 tc = t + 0.5;
     vec2 l1 = (uL1 - uOrigineEcr) / uEchelle, l2 = (uL2 - uOrigineEcr) / uEchelle;
-    bool derriere = uHauteur < 0.0;
-    // couronne : la face tournee vers nous s'assombrit franchement (l'ambiance garde les details)
-    float amb = derriere && uStyle > 0.5 ? uAmbiante * 0.7 : uAmbiante;
-    vec3 l = vec3(amb) + uC1 * uIntensite * recu(n, tc, l1);
-    if (uN > 1.5) l += uC2 * uIntensite * recu(n, tc, l2);
-    c = base.rgb * l;
-    if (derriere) {
-      vec3 g = geoAt(ts);
-      // translucidite des parties fines (couronne), teintee par la matiere
-      if (uStyle > 0.5) {
-        c += base.rgb * uC1 * uIntensite * 1.3 * translucide(tc, l1, g.g);
-        if (uN > 1.5) c += base.rgb * uC2 * uIntensite * 1.3 * translucide(tc, l2, g.g);
+    vec3 l;
+    if (uHauteur >= 0.0) {
+      l = vec3(uAmbiante) + uC1 * uIntensite * recu(n, tc, l1);
+      if (uN > 1.5) l += uC2 * uIntensite * recu(n, tc, l2);
+      c = base.rgb * l;
+    } else {
+      // lampe derriere : les sections choisies par contreJour, matiere x lumiere en paliers
+      l = vec3(uAmbiante) + uC1 * uIntensite * palier(min(contreJour(n, tc, l1), 1.0));
+      if (uN > 1.5) l += uC2 * uIntensite * palier(min(contreJour(n, tc, l2), 1.0));
+      c = base.rgb * l;
+      // contour et traits sombres : eclairage de la section voisine la plus eclairee, un palier
+      // plus bas et assombri (jamais la couleur de la lampe plaquee)
+      if (dot(base.rgb, vec3(0.3, 0.59, 0.11)) < 0.12) {
+        float best = 0.0;
+        vec3 bc = vec3(0.0);
+        for (int dy = -1; dy <= 1; dy++) {
+          for (int dx = -1; dx <= 1; dx++) {
+            vec2 q = ts + vec2(float(dx), float(dy));
+            if (q.x < 0.0 || q.y < 0.0 || q.x >= uTaille.x || q.y >= uTaille.y) continue;
+            vec2 qu = (q + 0.5) / uTaille;
+            vec4 b2 = texture2D(uNeutre, qu);
+            if (b2.a < 0.5 || dot(b2.rgb, vec3(0.3, 0.59, 0.11)) < 0.12) continue;
+            vec3 n3 = texture2D(uNormales, qu).rgb * 2.0 - 1.0;
+            if (uFlip > 0.5) n3.x = -n3.x;
+            n3 = normalize(n3);
+            vec2 tq = vec2(uFlip > 0.5 ? uTaille.x - 1.0 - q.x : q.x, q.y) + 0.5;
+            float e = palier(min(contreJour(n3, tq, l1), 1.0));
+            if (e > best) { best = e; bc = b2.rgb; }
+          }
+        }
+        float pas = uPaliers < 1.5 ? 0.34 : 1.0 / (uPaliers - 1.0);
+        float lv = max(best - pas, 0.0);
+        if (lv > 0.0) c = max(c, bc * uC1 * uIntensite * lv * 0.6);
       }
-      // lisere sur le bord EXTERIEUR reel, contour noir compris (couleur de la lampe, pas un produit)
-      c = lisere(c, base.rgb, n, tc, l1, uC1, g);
-      if (uN > 1.5) c = lisere(c, base.rgb, n, tc, l2, uC2, g);
     }
   }
   gl_FragColor = vec4(c, 1.0);
@@ -358,7 +331,7 @@ void main() {
   const U = {};
   for (const n of ["uRect", "uNeutre", "uNormales", "uOrigine", "uSections", "uTaille", "uCanvas",
     "uOrigineEcr", "uEchelle", "uMode", "uPaliers", "uAmbiante", "uHauteur", "uPortee", "uIntensite",
-    "uL1", "uL2", "uC1", "uC2", "uN", "uRayonDisque", "uFlip", "uContre", "uDisques", "uEpais", "uGeo", "uPad", "uStyle", "uTrans", "uHalo"]) U[n] = gl.getUniformLocation(prog, n);
+    "uL1", "uL2", "uC1", "uC2", "uN", "uRayonDisque", "uFlip", "uContre", "uDisques", "uGeo", "uPad"]) U[n] = gl.getUniformLocation(prog, n);
   gl.uniform1i(U.uNeutre, 0); gl.uniform1i(U.uNormales, 1);
   gl.uniform1i(U.uOrigine, 2); gl.uniform1i(U.uSections, 3); gl.uniform1i(U.uGeo, 4);
   gl.uniform1f(U.uPad, D.geoPad || 6);
@@ -473,8 +446,8 @@ void main() {
   if (ha && assets[+ha[1]]) { etat.courant = +ha[1]; $("asset").value = ha[1]; }
   if (/marche/.test(location.hash)) { anim.marcher = true; $("marcher").checked = true; }
   if (/sens/.test(location.hash)) { anim.sens = true; $("sens").checked = true; }
-  const hs = /style=(\d)/.exec(location.hash);
-  if (hs) $("style").value = hs[1];
+  const hp = /[&#]p=(\d+)/.exec(location.hash);
+  if (hp) $("portee").value = hp[1];
   const hz = /z=(-?\d+)/.exec(location.hash);
   if (hz) $("hauteur").value = hz[1];
   const hf = /f=(\d+)/.exec(location.hash);
@@ -510,7 +483,7 @@ void main() {
   presets("couleurs2", $("couleur2"));
 
   const affichages = { hauteur: (v) => (v > 0 ? "+" : "") + v + " px" + (v < 0 ? " (derriere)" : v > 0 ? " (devant)" : " (dans le plan)"),
-    contre: (v) => (+v).toFixed(1), trans: (v) => (+v).toFixed(1), halo: (v) => (+v).toFixed(1), intensite: (v) => (+v).toFixed(2),
+    contre: (v) => (+v).toFixed(1), intensite: (v) => (+v).toFixed(2),
     portee: (v) => v + " px", ambiante: (v) => Math.round(v * 100) + " %" };
   for (const id in affichages) {
     const e = $(id), o = $("o-" + id);
@@ -518,8 +491,7 @@ void main() {
     o.textContent = affichages[id](e.value);
   }
   $("paliers").onchange = dessiner;
-  $("epais").onchange = dessiner;
-  $("style").onchange = dessiner;
+
   $("l2").onchange = dessiner;
   document.querySelectorAll("input[data-mode]").forEach((cb) => {
     cb.onchange = () => {
@@ -580,10 +552,6 @@ void main() {
     gl.uniform1f(U.uN, n2);
     gl.uniform1f(U.uRayonDisque, 6 * dpr);
     gl.uniform1f(U.uContre, +$("contre").value);
-    gl.uniform1f(U.uEpais, +$("epais").value);
-    gl.uniform1f(U.uStyle, +$("style").value);
-    gl.uniform1f(U.uTrans, +$("trans").value);
-    gl.uniform1f(U.uHalo, +$("halo").value);
     // lumieres derriere : disques et halos d'abord, les sprites les recouvrent
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -600,21 +568,6 @@ void main() {
       if (anim.x > amp) { anim.x = amp; anim.dir = -1; }
       if (anim.x < -amp) { anim.x = -amp; anim.dir = 1; }
       dx = Math.round(anim.x);
-    }
-    const halo = +$("hauteur").value < 0 && +$("style").value === 1 && etat.mode === 0;
-    const pad = D.geoPad || 6;
-    for (const p of places) {
-      if (!halo) break;
-      const fr = p.a.frames[idx(p.a.frames.length)];
-      NOMS.forEach((nom, i) => { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, fr.tex[nom]); });
-      const vers = anim.marcher && !etat.tous ? (anim.dir > 0 ? "droite" : "gauche") : null;
-      gl.uniform1f(U.uFlip, (vers ? vers !== p.a.regarde : anim.sens) ? 1 : 0);
-      const x = ox + (p.x + dx) * s, y = oy + p.y * s;
-      gl.uniform1f(U.uMode, 8);
-      gl.uniform2f(U.uTaille, p.a.taille[0], p.a.taille[1]);
-      gl.uniform2f(U.uOrigineEcr, x, y);
-      gl.uniform4f(U.uRect, x - pad * s, y - pad * s, (p.a.taille[0] + 2 * pad) * s, (p.a.taille[1] + 2 * pad) * s);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
     gl.uniform1f(U.uMode, etat.mode);
     for (const p of places) {

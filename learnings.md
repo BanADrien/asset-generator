@@ -155,3 +155,10 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   la lumiere est la plus travaillee. L'utilisateur n'a aucune gestion de la lumiere pour ses
   assets. PISTE (non implementee) : produire un sprite a eclairage neutre + une carte de
   normales ou des calques de lumiere, pour que le jeu eclaire lui-meme (Phaser Light2D).
+- 2026-11-17 - mode sections, contre-jour : « je veux pas de liseré [...] pas mettre une vieille
+  bande ». PAS de lisere ni de bande ajoutee par-dessus (ni couleur de lampe plaquee sur le
+  contour, ni couronne, ni halo). Le contre-jour passe par les SECTIONS existantes : matiere x
+  lumiere avec les memes paliers ; il choisit seulement quelles sections rasantes s'allument
+  (sens par rapport a la lampe) et jusqu'ou (portee). Le contour prend l'eclairage de la section
+  voisine, un palier plus bas. Lampe placee trop loin devant le plan : le sommet des formes
+  s'assombrit (profondeur 8 px par defaut).

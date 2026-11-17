@@ -131,8 +131,8 @@ jeu). Autonome, double-clic, Chrome : le sprite au centre a echelle entiere,
 lumiere a glisser (souris ou doigt), WebGL sans bibliotheque. Reglages : hauteur, intensite,
 portee, ambiante, profondeur de la lumiere (-60 derriere a +60 devant, 8 par defaut ; trop
 grande devant, le sommet des formes s'assombrit quand la lampe est proche ; derriere : contre-jour,
-point lumineux cache par la silhouette avec un halo ; « Style de contre-jour » lisere pixel art ou
-couronne, « Contre-jour », « Degrade du lisere » 1-3 px, « Translucidite », « Halo »), couleur
+point lumineux cache par la silhouette ; reglage « Contre-jour » : les sections du bord
+s'allument, de plus en plus loin avec la portee), couleur
 (torche, lune, blanc), paliers 2-5 ou lisse, 2e lumiere, affichage du
 sprite d'origine / des sections / des normales a la place. Adresse : `#l=0.1,0.3` (lumiere au
 depart, fraction de la boite affichee), `&a=2` (asset), `&tous`, `&m=2` (affichage).
@@ -202,29 +202,24 @@ classe, apres `super.onRender(scene, camera)` :
     scene.sys.lights.getLights(camera).forEach((l, i) =>
       this.set1f(`uLightZ[${i}]`, l.profondeur ?? 0.015));   // negatif = derriere ; meme ordre que Phaser
 
-Lumiere derriere : le produit scalaire (sans valeur absolue) eteint les faces tournees vers l'avant.
-Le contre-jour se fait avec une TEXTURE DE GEOMETRIE par image (`sections.geometrie`, ecrite par
-`viewer.py` ; a precalculer pareil pour le jeu, et a joindre au sprite comme 3e texture) :
-R = profondeur depuis le bord EXTERIEUR reel, G = epaisseur locale, B = distance au sprite dans le
-fond (marge de 6 px). Bord exterieur reel = silhouette fermee d'1 px puis remplissage depuis le bord
-de l'image : les fentes de 1-2 px (visage/cheveux, bras/corps, cape/corps : 35 a 53 pixels de
-« bord » par frame de la marche) ne s'allument plus ; trous enfermes < 12 px = interieur.
+Lumiere derriere (z < 0) : PAS de lisere, de bande, de halo ni de couleur de lampe plaquee
+(refuses par l'utilisateur). On eclaire les SECTIONS comme pour une lampe devant (matiere x
+lumiere, memes paliers) ; le contre-jour choisit seulement quelles sections et combien :
 
-    sc = -z / d3 ; att = portee ; w = 0.5 + 0.5 |n2 . dir2(lampe)| ; fin = clamp((5 - G) / 4)
-    q  = min(floor(contre * sc^2 * att * w * (1 + 0.8 fin) * 3), 3)        // 0..3, selectif
-    style A « lisere pixel art » :
-      R = 1 et q >= 1 : couleur de la lampe (60 % ou 90 %), contour noir compris (pas un produit)
-      R = 2 et q >= 2 : matiere x lampe x 1,7-2,2 (eclaircie et teintee) ; R = 3 et q = 3 : x 1,5
-      sinon : rien, le contour noir d'origine revient
-    style B « couronne » : A + ambiance x 0,7 (face sombre, details lisibles) +
-      translucidite des parties fines : matiere x lampe x quantif(trans x sc^2 x att x clamp((6 - G) / 5))
-      + halo dans le fond (passe dessinee AVANT le sprite) : anneaux B = 1..4,
-        niveau = quantif(halo x sc^2 x att x (1 - (B - 1) / 4)) en 3 crans, alpha 0,7 x niveau
+    m     = |n.xy|                      // 0 face, 0,64 inclinee, 0,93 rasante
+    u     = direction 2D pixel -> lampe ; n2 = n.xy / m
+    h     = lampe cachee : profondeur de la lampe dans la silhouette / 3 (texture de geometrie,
+            R = profondeur depuis le bord exterieur reel), 0 hors silhouette
+    sens  = mix(max(n2.u, 0), max(-n2.u, 0), h)   // vers la lampe dehors, a l'oppose cachee : continu
+    att   = clamp(1 - d2^2 / (0,3 portee)^2)      // la portee regle jusqu'ou ca gagne le contour
+    ex    = de 3 (petite portee : rasantes seules) a 0,8 (grande portee : inclinees aussi)
+    e     = contre x m^ex x sens x att x clamp(-z / 10)  ->  lumiere = palier(e)
+    faces : m = 0 -> ambiance seule
 
-Formule continue (aucun test « lampe cachee ») : lampe cachee au centre -> couronne d'intensite
-variable ; lampe decalee -> contour proche fort, le reste revient au noir. Dans Phaser : memes
-calculs dans le pipeline personnalise (profondeur par lampe via uLightZ ci-dessus), la texture
-de geometrie en `uniform sampler2D`, le halo en sprite separe derriere le personnage.
+Contour et traits sombres : eclairage de la section voisine la plus eclairee, un palier plus bas,
+x 0,6 : il s'eclaircit un peu avec la section, sans devenir une bande. Les cartes de sections ne
+changent pas. Dans Phaser : meme calcul dans le pipeline personnalise (profondeur par lampe via
+uLightZ ci-dessus ; la texture de geometrie en 3e texture pour savoir si la lampe est cachee).
 
 ### Sprite retourne (flipX) : inverser normal.x dans le meme pipeline
 Dans la copie du shader, remplacer la ligne du calcul de `normal` par :
