@@ -203,23 +203,24 @@ classe, apres `super.onRender(scene, camera)` :
       this.set1f(`uLightZ[${i}]`, l.profondeur ?? 0.015));   // negatif = derriere ; meme ordre que Phaser
 
 Lumiere derriere (z < 0) : PAS de lisere, de bande, de halo ni de couleur de lampe plaquee
-(refuses par l'utilisateur). On eclaire les SECTIONS comme pour une lampe devant (matiere x
-lumiere, memes paliers) ; le contre-jour choisit seulement quelles sections et combien :
+(refuses par l'utilisateur), et PAS de regles tout-ou-rien empilees (v9 : rasante oui/non, sens
+oui/non, ouverture < 4 px oui/non sur des normales a 17 directions -> taches eparses, « logique
+forcee »). Modele v10 : UN calcul continu, quantifie une seule fois a la fin.
 
-    ras   = clamp((0,55 - n.z) / 0,15)      // rasante (z 0,37) -> 1 ; inclinee (0,76), face -> 0
-    sens  = mix(max(n2.u, 0), max(-n2.u, 0), h) puis clamp((sens - 0,5) / 0,4)   // franc, +-45 deg
-            (u = direction 2D pixel -> lampe ; h = lampe cachee dans la silhouette, texture de geometrie)
-    ouv   = 1 si un pixel vide est a <= 4 px le long de la normale 2D (la section donne sur le vide ;
-            une rasante tournee vers une autre partie du corps reste noire)
-    att   = clamp(1 - d2^2 / (0,3 portee)^2) // la portee : distance 2D seulement, jamais vers l'interieur
-    e     = min(contre x ras x sens x ouv x att x clamp(-z / 10), 1) x 0,67  -> lumiere = palier(e)
-            (plafond 0,67 : toujours plus faible qu'un eclairage de face)
+    ns    = normale LISSEE (moyenne 5x5 des normales opaques) : varie en douceur le long du contour
+    face  = max(ns . L, 0) x attenuation             // lumiere directe, sans paliers
+    ras   = smoothstep(0,2 ; 0,6 ; 1 - ns.z)          // face 0, inclinee ~0, rasante ~1
+    dir   = (0,5 + 0,5 mix(n2.u, -n2.u, h))^3          // u = pixel -> lampe ; h = lampe cachee (0..1)
+    vis   = 1 - smoothstep(1 ; 5 ; profondeur depuis le bord exterieur)   // texture de geometrie
+    att   = (1 - d2^2 / (0,3 portee)^2)^2            // distance 2D seulement
+    cj    = min(contre x ras x dir x vis x att x clamp(-z / 10), 1) x 0,67
+    lumiere = ambiance + couleur x intensite x palier(min(face + cj, 1))   // un seul palier
 
-Vrai contre-jour : seules les surfaces presque perpendiculaires au regard, au bord de la silhouette,
-attrapent la lumiere de derriere ; tout ce qui fait face au spectateur reste a l'ambiance, meme avec
-une grande portee. Part de la silhouette eclairee (portee 500, z = -20), avant -> apres :
-lampe au centre, Agarica 59 % -> 21 %, crapaud 61 % -> 19 % ; en bas, Agarica 39 % -> 14 %,
-crapaud 17 % -> 1 % ; a gauche, Agarica 20 % -> 3 %, crapaud 52 % -> 5 %.
+Les sections restent la base de la lumiere de face (z > 0, inchange) et des paliers. Taches
+eclairees separees (composantes connexes au-dessus de l'ambiance, portee 500, z = -20), v9 -> v10 :
+Agarica centre 12 -> 7, bas 7 -> 8 (jambes separees), gauche 6 -> 2 ; crapaud centre 13 -> 7,
+bas 10 -> 6, gauche 16 -> 6 (total 64 -> 36). Part eclairee comparable (Agarica centre 21 -> 25 %).
+La page garde temporairement une case « Contre-jour v9 (ancien) » pour comparer.
 
 Contour : aucun traitement special du bord dans le shader. Dans sections.py, chaque pixel qui
 touche le vide HERITE de la section des pixels interieurs voisins (heriter_bord) : le contour fait

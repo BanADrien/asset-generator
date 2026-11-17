@@ -94,6 +94,7 @@
         <input type="range" id="hauteur" min="-60" max="60" step="1" value="8"></label>
       <label class="r" title="Lumiere derriere : intensite. Les SECTIONS rasantes du bord tournees dans le bon sens s'allument (couleur de la matiere x lumiere, memes paliers) ; la portee regle jusqu'ou la lumiere gagne le long du contour et vers l'interieur.">Contre-jour <output id="o-contre"></output>
         <input type="range" id="contre" min="0" max="3" step="0.1" value="1.5"></label>
+      <label class="c"><input type="checkbox" id="ancien"> Contre-jour v9 (ancien, pour comparer)</label>
       <label class="r">Intensite <output id="o-intensite"></output>
         <input type="range" id="intensite" min="0" max="2" step="0.05" value="1"></label>
       <label class="r">Portee <output id="o-portee"></output>
@@ -158,6 +159,7 @@ void main() {
 precision highp float;
 uniform sampler2D uNeutre, uNormales, uOrigine, uSections, uGeo;
 uniform float uPad;        // marge de la texture de geometrie (px du sprite)
+uniform float uAncien;     // 1 = contre-jour v9 (regles tout-ou-rien), pour comparer
 uniform vec2 uTaille;      // taille du sprite (px du sprite)
 uniform vec2 uCanvas;      // taille du canvas (px ecran)
 uniform vec2 uOrigineEcr;  // coin haut-gauche du sprite (px ecran, y vers le bas)
@@ -248,6 +250,53 @@ float contreJour(vec3 n, vec2 t, vec2 lp, vec2 ts) {
   return min(uContre * ras * sens * ouv * att * prof, 1.0) * 0.67;
 }
 
+// ---- contre-jour v10 : UN modele continu, quantifie une seule fois a la fin
+// normale lissee (moyenne 5x5 des normales opaques) : l'orientation varie en douceur le long du
+// contour au lieu de sauter d'une section a l'autre ; les sections restent pour la lumiere de face
+vec3 normaleLisse(vec2 ts) {
+  vec3 acc = vec3(0.0);
+  for (int dy = -2; dy <= 2; dy++) {
+    for (int dx = -2; dx <= 2; dx++) {
+      vec2 q = ts + vec2(float(dx), float(dy));
+      if (q.x < 0.0 || q.y < 0.0 || q.x >= uTaille.x || q.y >= uTaille.y) continue;
+      vec4 nn = texture2D(uNormales, (q + 0.5) / uTaille);
+      if (nn.a < 0.5) continue;
+      acc += nn.rgb * 2.0 - 1.0;
+    }
+  }
+  if (uFlip > 0.5) acc.x = -acc.x;
+  return length(acc) > 0.001 ? normalize(acc) : vec3(0.0, 0.0, 1.0);
+}
+
+float lumiereBrute(vec3 n, vec2 t, vec2 lp) {   // comme recu(), sans paliers
+  vec3 d = vec3(lp.x - t.x, t.y - lp.y, uHauteur);
+  float dist = length(d);
+  float att = clamp(1.0 - (dist * dist) / (uPortee * uPortee), 0.0, 1.0);
+  return max(dot(n, d / dist), 0.0) * att;
+}
+
+//   rasance    = smoothstep(0,2 ; 0,6 ; 1 - n.z)                (face 0, inclinee ~0, rasante ~1)
+//   direction  = (0,5 + 0,5 mix(n2.u, -n2.u, cachee))^3          (doux, continu dehors / cachee)
+//   visibilite = 1 - smoothstep(1 ; 5 ; profondeur depuis le bord exterieur)
+//   attenuation= (1 - d2^2 / (0,3 portee)^2)^2                   (distance 2D seulement)
+float contreJourDoux(vec3 n, vec2 t, vec2 lp, vec2 ts) {
+  float m = length(n.xy);
+  if (m < 0.001) return 0.0;
+  float ras = smoothstep(0.2, 0.6, 1.0 - n.z);
+  vec2 dl = vec2(lp.x - t.x, t.y - lp.y);
+  float d2 = length(dl);
+  float dd = dot(n.xy / m, dl / max(d2, 0.001));
+  float h = cache(lp);
+  float dir = 0.5 + 0.5 * mix(dd, -dd, h);
+  dir = dir * dir * dir;
+  float vis = 1.0 - smoothstep(1.0, 5.0, geoAt(ts).r);
+  float R = max(uPortee * 0.3, 4.0);
+  float att = clamp(1.0 - (d2 * d2) / (R * R), 0.0, 1.0);
+  att *= att;
+  float prof = clamp(-uHauteur / 10.0, 0.0, 1.0);
+  return min(uContre * ras * dir * vis * att * prof, 1.0) * 0.67;
+}
+
 void main() {
   vec2 fc = vec2(gl_FragCoord.x, uCanvas.y - gl_FragCoord.y);
   if (uMode > 8.5) {
@@ -297,9 +346,16 @@ void main() {
       if (uN > 1.5) l += uC2 * uIntensite * recu(n, tc, l2);
       c = base.rgb * l;
     } else {
-      // lampe derriere : les sections choisies par contreJour, matiere x lumiere en paliers
-      l = vec3(uAmbiante) + uC1 * uIntensite * palier(contreJour(n, tc, l1, ts));
-      if (uN > 1.5) l += uC2 * uIntensite * palier(contreJour(n, tc, l2, ts));
+      if (uAncien > 0.5) {
+        // v9 : regles tout-ou-rien (gardee pour comparer)
+        l = vec3(uAmbiante) + uC1 * uIntensite * palier(contreJour(n, tc, l1, ts));
+        if (uN > 1.5) l += uC2 * uIntensite * palier(contreJour(n, tc, l2, ts));
+      } else {
+        // v10 : lumiere de face + contre-jour, continus (normale lissee), puis UN seul palier
+        vec3 ns = normaleLisse(ts);
+        l = vec3(uAmbiante) + uC1 * uIntensite * palier(min(lumiereBrute(ns, tc, l1) + contreJourDoux(ns, tc, l1, ts), 1.0));
+        if (uN > 1.5) l += uC2 * uIntensite * palier(min(lumiereBrute(ns, tc, l2) + contreJourDoux(ns, tc, l2, ts), 1.0));
+      }
       c = base.rgb * l;
       // contour noir : sa couleur sombre x l'eclairage de SA section (heritee de la section qu'il
       // borde, sections.py) : toujours plus sombre qu'elle, aucun traitement special du bord
@@ -328,7 +384,7 @@ void main() {
   const U = {};
   for (const n of ["uRect", "uNeutre", "uNormales", "uOrigine", "uSections", "uTaille", "uCanvas",
     "uOrigineEcr", "uEchelle", "uMode", "uPaliers", "uAmbiante", "uHauteur", "uPortee", "uIntensite",
-    "uL1", "uL2", "uC1", "uC2", "uN", "uRayonDisque", "uFlip", "uContre", "uDisques", "uGeo", "uPad"]) U[n] = gl.getUniformLocation(prog, n);
+    "uL1", "uL2", "uC1", "uC2", "uN", "uRayonDisque", "uFlip", "uContre", "uDisques", "uGeo", "uPad", "uAncien"]) U[n] = gl.getUniformLocation(prog, n);
   gl.uniform1i(U.uNeutre, 0); gl.uniform1i(U.uNormales, 1);
   gl.uniform1i(U.uOrigine, 2); gl.uniform1i(U.uSections, 3); gl.uniform1i(U.uGeo, 4);
   gl.uniform1f(U.uPad, D.geoPad || 6);
@@ -443,6 +499,7 @@ void main() {
   if (ha && assets[+ha[1]]) { etat.courant = +ha[1]; $("asset").value = ha[1]; }
   if (/marche/.test(location.hash)) { anim.marcher = true; $("marcher").checked = true; }
   if (/sens/.test(location.hash)) { anim.sens = true; $("sens").checked = true; }
+  if (/ancien/.test(location.hash)) $("ancien").checked = true;
   const hp = /[&#]p=(\d+)/.exec(location.hash);
   if (hp) $("portee").value = hp[1];
   const hz = /z=(-?\d+)/.exec(location.hash);
@@ -488,6 +545,7 @@ void main() {
     o.textContent = affichages[id](e.value);
   }
   $("paliers").onchange = dessiner;
+  $("ancien").onchange = dessiner;
 
   $("l2").onchange = dessiner;
   document.querySelectorAll("input[data-mode]").forEach((cb) => {
@@ -549,6 +607,7 @@ void main() {
     gl.uniform1f(U.uN, n2);
     gl.uniform1f(U.uRayonDisque, 6 * dpr);
     gl.uniform1f(U.uContre, +$("contre").value);
+    gl.uniform1f(U.uAncien, $("ancien").checked ? 1 : 0);
     // lumieres derriere : disques et halos d'abord, les sprites les recouvrent
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
