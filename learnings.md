@@ -162,3 +162,7 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   (sens par rapport a la lampe) et jusqu'ou (portee). Le contour prend l'eclairage de la section
   voisine, un palier plus bas. Lampe placee trop loin devant le plan : le sommet des formes
   s'assombrit (profondeur 8 px par defaut).
+- 2026-11-17 - contre-jour, suite : « ca eclaire trop la face visible centrale [...] on dirait pas
+  une lumiere qui vient de derriere ». Lampe derriere : seules les sections RASANTES qui donnent
+  sur le vide s'allument ; jamais les inclinees ni la face, meme a grande portee (la portee ne
+  regle que la distance 2D). Controle chiffre : < ~20 % de la silhouette eclairee, lampe au centre.

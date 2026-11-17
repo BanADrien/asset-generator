@@ -206,15 +206,20 @@ Lumiere derriere (z < 0) : PAS de lisere, de bande, de halo ni de couleur de lam
 (refuses par l'utilisateur). On eclaire les SECTIONS comme pour une lampe devant (matiere x
 lumiere, memes paliers) ; le contre-jour choisit seulement quelles sections et combien :
 
-    m     = |n.xy|                      // 0 face, 0,64 inclinee, 0,93 rasante
-    u     = direction 2D pixel -> lampe ; n2 = n.xy / m
-    h     = lampe cachee : profondeur de la lampe dans la silhouette / 3 (texture de geometrie,
-            R = profondeur depuis le bord exterieur reel), 0 hors silhouette
-    sens  = mix(max(n2.u, 0), max(-n2.u, 0), h)   // vers la lampe dehors, a l'oppose cachee : continu
-    att   = clamp(1 - d2^2 / (0,3 portee)^2)      // la portee regle jusqu'ou ca gagne le contour
-    ex    = de 3 (petite portee : rasantes seules) a 0,8 (grande portee : inclinees aussi)
-    e     = contre x m^ex x sens x att x clamp(-z / 10)  ->  lumiere = palier(e)
-    faces : m = 0 -> ambiance seule
+    ras   = clamp((0,55 - n.z) / 0,15)      // rasante (z 0,37) -> 1 ; inclinee (0,76), face -> 0
+    sens  = mix(max(n2.u, 0), max(-n2.u, 0), h) puis clamp((sens - 0,5) / 0,4)   // franc, +-45 deg
+            (u = direction 2D pixel -> lampe ; h = lampe cachee dans la silhouette, texture de geometrie)
+    ouv   = 1 si un pixel vide est a <= 4 px le long de la normale 2D (la section donne sur le vide ;
+            une rasante tournee vers une autre partie du corps reste noire)
+    att   = clamp(1 - d2^2 / (0,3 portee)^2) // la portee : distance 2D seulement, jamais vers l'interieur
+    e     = min(contre x ras x sens x ouv x att x clamp(-z / 10), 1) x 0,67  -> lumiere = palier(e)
+            (plafond 0,67 : toujours plus faible qu'un eclairage de face)
+
+Vrai contre-jour : seules les surfaces presque perpendiculaires au regard, au bord de la silhouette,
+attrapent la lumiere de derriere ; tout ce qui fait face au spectateur reste a l'ambiance, meme avec
+une grande portee. Part de la silhouette eclairee (portee 500, z = -20), avant -> apres :
+lampe au centre, Agarica 59 % -> 21 %, crapaud 61 % -> 19 % ; en bas, Agarica 39 % -> 14 %,
+crapaud 17 % -> 1 % ; a gauche, Agarica 20 % -> 3 %, crapaud 52 % -> 5 %.
 
 Contour : aucun traitement special du bord dans le shader. Dans sections.py, chaque pixel qui
 touche le vide HERITE de la section des pixels interieurs voisins (heriter_bord) : le contour fait
