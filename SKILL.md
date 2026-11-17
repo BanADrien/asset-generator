@@ -88,7 +88,9 @@ Detail, table des couleurs et integration Phaser : `references/lumiere.md`.
    matiere, contour et oeil gardes), `<nom>.sections.png` (zones en couleurs franches, 1 couleur
    = 1 direction), `<nom>.normales.png` (R = x, G = y vers le HAUT, B = z), `<nom>.cj.png` (carte
    CONTRE-JOUR : R,G direction du bord expose, B exposition arriere ; apercu retouchable
-   `<nom>.cj-apercu.png`, relu par `--depuis-cj`) + planche d'apercu.
+   `<nom>.cj-apercu.png`, relu par `--depuis-cj`) + planche d'apercu. Grand sprite (racine de la
+   surface opaque > 96 px) : reglages en pixels multiplies par s automatiquement, neutre detaille
+   (voir `lumiere.md`, « Grands sprites ») ; calcul plus long en Python (minutes pour Kainati).
    Regarder l'apercu (zones = parties de l'animal ? lumiere a gauche = cote gauche eclaire ?).
    Neutre rate : `--rampes` / `--garder` ; en dernier recours UNE generation Codex (voir
    `lumiere.md`), gardee seulement si la silhouette est identique au pixel pres.

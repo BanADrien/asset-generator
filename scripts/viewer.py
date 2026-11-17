@@ -26,7 +26,7 @@ def data_uri(path):
         return "data:image/png;base64," + base64.b64encode(f.read()).decode("ascii")
 
 
-def images(sprite):
+def images(sprite, ech=1):
     stem = os.path.splitext(sprite)[0]
     imgs = {"origine": sprite}
     for k in ("neutre", "normales", "sections"):
@@ -46,7 +46,7 @@ def images(sprite):
     else:
         buf = io.BytesIO()
         sections.carte_cj(Image.open(sprite).convert("RGBA"), Image.open(imgs["normales"]),
-                          Image.open(imgs["neutre"])).save(buf, "PNG")
+                          Image.open(imgs["neutre"]), echelle=ech).save(buf, "PNG")
         out["cj"] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
     return out
 
@@ -56,11 +56,15 @@ def asset(sprite, nom, regarde="droite"):
         with open(sprite, encoding="utf-8") as f:
             man = json.load(f)
         d = os.path.dirname(sprite)
+        # echelle s (grand sprite) : mediane des frames, comme sections.py ; la page en tire le pas de
+        # la normale lissee (round(s)) et les plages de portee / profondeur
+        ech = man.get("s") or sections.echelle_sprite([Image.open(os.path.join(d, fr)) for fr in man["frames"]])
         return {"nom": nom or man["nom"], "fps": man.get("fps", 12), "vitesse": man.get("vitesse", 0),
-                "regarde": man.get("regarde", regarde),
-                "frames": [{"images": images(os.path.join(d, fr))} for fr in man["frames"]]}
-    return {"nom": nom or os.path.basename(os.path.splitext(sprite)[0]), "regarde": regarde,
-            "images": images(sprite)}
+                "regarde": man.get("regarde", regarde), "s": ech,
+                "frames": [{"images": images(os.path.join(d, fr), ech)} for fr in man["frames"]]}
+    ech = sections.echelle_sprite([Image.open(sprite)])
+    return {"nom": nom or os.path.basename(os.path.splitext(sprite)[0]), "regarde": regarde, "s": ech,
+            "images": images(sprite, ech)}
 
 
 def main():

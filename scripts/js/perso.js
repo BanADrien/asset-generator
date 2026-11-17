@@ -1,6 +1,7 @@
-// COPIE de tools/lumiere/perso.js, depot du jeu agarica, branche feature/eclairage-sections, commit bd62a60
-// (coeur.js sorti de tools/sections.js au commit 5323430). Ne pas la modifier ici : la recopier.
-// Meme calcul que scripts/sections.py, cartes identiques au pixel pres (scripts/js/test-page.js).
+// COPIE de tools/lumiere/perso.js, depot du jeu agarica, branche feature/eclairage-sections, commit aa58770
+// (grands sprites : coeur 293e879, page 8191fa0 ; coeur.js sorti de tools/sections.js en 5323430).
+// Ne pas la modifier ici : la recopier. Meme calcul que scripts/sections.py, cartes identiques au
+// pixel pres (scripts/js/test-page.js).
 // Page d'aperçu : charger SES images pour les essayer sous la lumière (navigateur seulement).
 // Embarqué par tools/lumiere/apercu.js avec geo.js et coeur.js (même calcul que tools/sections.js)
 // et le gabarit validé (MODELE). La vue d'éclairage est le gabarit tel quel, dans une iframe
@@ -65,8 +66,8 @@
       }));
       const images = (fr) => ({ origine: fr.natif, neutre: fr.neutre, normales: fr.n, sections: fr.sections, geo: fr.geo, cj: fr.cj });
       const asset = frames.length > 1
-        ? { nom: `${nom} (vos images)`, frames: frames.map((fr) => ({ images: images(fr) })), fps: 12, vitesse: 0, regarde: 'droite' }
-        : { nom: `${nom} (votre image)`, images: images(frames[0]), regarde: 'droite' };
+        ? { nom: `${nom} (vos images)`, frames: frames.map((fr) => ({ images: images(fr) })), fps: 12, vitesse: 0, regarde: 'droite', s: r.s }
+        : { nom: `${nom} (votre image)`, images: images(frames[0]), regarde: 'droite', s: r.s };
       D.assets.unshift(asset);
       perso.unshift({ nom, frames });
       const w = r.frames[0].nat.width, h = r.frames[0].nat.height;

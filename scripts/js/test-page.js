@@ -55,17 +55,6 @@ function ecartsOpaques(a, b) {   // opacite et RGB des pixels opaques
   }
   return d;
 }
-function rognerOpaque(im, ref) {   // im rogne a la boite des pixels opaques de ref (meme taille)
-  let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
-  for (let y = 0; y < ref.height; y++) {
-    for (let x = 0; x < ref.width; x++) {
-      if (ref.data[(y * ref.width + x) * 4 + 3] >= 128) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-    }
-  }
-  const w = x1 - x0 + 1, h = y1 - y0 + 1, o = { width: w, height: h, data: new Uint8Array(w * h * 4) };
-  for (let y = 0; y < h; y++) o.data.set(im.data.subarray(((y + y0) * im.width + x0) * 4, ((y + y0) * im.width + x0 + w) * 4), y * w * 4);
-  return o;
-}
 const depuisB64 = (s) => {
   const [t, b] = s.split(':');
   const [w, h] = t.split('x').map(Number);
@@ -91,7 +80,11 @@ function main() {
       const node = C.traiterImages([im], reglages);
       // sections.py avec la taille de pixel imposee, ou celle que la page a detectee
       const f = node.f > 1 ? node.f : 0;
-      execFileSync(py, ['-I', SECTIONS_PY, s.fichier, ...(f ? ['--facteur', String(f)] : []), '--sortie', stem],
+      // sans grille : la page rogne le sprite a ses pixels opaques (et retire un fond uni) ; sections.py
+      // recoit ce meme sprite natif (sinon la taille de l'image change le flou d'ensemble)
+      let entree = s.fichier;
+      if (!f) { entree = `${stem}-natif.png`; fs.writeFileSync(entree, PNG.encoder(node.frames[0].nat)); }
+      execFileSync(py, ['-I', SECTIONS_PY, entree, ...(f ? ['--facteur', String(f)] : []), '--sortie', stem],
         { stdio: ['ignore', 'ignore', 'inherit'] });
       return { nom: `${path.basename(s.fichier)}${s.facteur ? ` (pixel = ${s.facteur} px)` : ' (auto)'}`, im, stem, facteur: f, reglages, node };
     });
@@ -119,14 +112,12 @@ function main() {
         const e = ecarts(depuisB64(bf[q]), fr[q]);
         dn += typeof e === 'number' ? e : 1e9;
       }
-      // Python : sans --facteur, sections.py garde l'image entiere (pas de rognage) -> rogner comme le coeur
       const L = (s) => PNG.lirePng(`${c.stem}.${s}.png`);
       const nor = L('normales');
-      const pyNat = c.facteur ? PNG.lirePng(`${c.stem}.png`) : c.im;
-      const rog = (x) => (c.facteur ? x : rognerOpaque(x, nor));
+      const pyNat = c.facteur ? PNG.lirePng(`${c.stem}.png`) : fr.nat;
       const detail = [];
       let dp = 0;
-      for (const [q, im] of [['nat', rog(pyNat)], ['neu', rog(L('neutre'))], ['sec', rog(L('sections'))], ['nor', rog(nor)], ['cj', rog(L('cj'))]]) {
+      for (const [q, im] of [['nat', pyNat], ['neu', L('neutre')], ['sec', L('sections')], ['nor', nor], ['cj', L('cj')]]) {
         const e = ecartsOpaques(fr[q], im);
         if (e !== 0) detail.push(`${q} : ${e}`);
         dp += typeof e === 'number' ? e : 1e9;

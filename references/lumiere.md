@@ -288,6 +288,20 @@ zone. Page de test : case « Carte contre-jour » pour la voir. Si la carte manq
 Batterie v16 (12 tests, 5 sprites) : tout OK ; « milieu sombre » (lampe derriere au centre, a gauche,
 en haut ; z = -20 et -49 ; pixels de sections non reliees au bord, hors frange de 2 px) 19-36 % -> 0 %.
 
+Grands sprites (echelle s, comme tools/lumiere/coeur.js du jeu, commit 293e879) : s = max(1,
+racine(surface opaque) / 96), mediane des frames d'une animation, arrondie au centieme (Math.round) ;
+longueurs L -> round(L s), surfaces S -> round(S s^2) ; s = 1 (sprites de la demo) : rien ne change.
+Concernes : analyse (parties absorbees 12 s^2, rayons des vecteurs de bord 7 s et 6 s, lissage de
+l'ombrage +-2 s, GBLUR_MIN 4 s, marge GPAD 12 s, bombe de partie : flou de rayon max(1,2 s ; min(3 s ; 0,6 dmax)),
+poids dmax / 3 s, contour exterieur 2,3 s, propagation 6 s passes, filtre majoritaire 3 s / 5 s
+passes, petites zones 6 s^2 / 10 s^2, grains 2 s^2, PART_MIN 20 s^2), carte contre-jour (decroissance
+12 s, contour 2 s, frange 2 s passes a 0,5^(1/s), direction lissee 2 s), lissage dans le temps
+(recalage 3 s px sur un pixel sur round(s^2), zones 4 s^2) ; neutre detaille pour s > 1 (matiere +
+ecart a sa moyenne locale sur +-2 s px, ramene a la couleur de rampe la plus proche ; matieres
+claires x 188 / leur max). Page : normale lissee echantillonnee tous les round(s) px (uPasLisse),
+portee jusqu'a max(800, 3 x diagonale), profondeur +-max(60, diagonale / 6). sections.py ecrit
+« s » dans le .anim.json quand s > 1 ; viewer.py le passe a la page.
+
 Dans Phaser (pipeline personnalise) : meme fonction par lampe ; uniforms par lampe : position,
 profondeur (uLightZ) ; textures : normales + carte contre-jour (.cj.png, a generer par le portage de
 sections.js ; a declarer dans le manifeste a cote des normales). La texture de geometrie ne sert plus

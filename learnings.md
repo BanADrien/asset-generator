@@ -187,3 +187,11 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   (bande, taches, bascule, milieu eclaire) echouent quelque part. Une information qui manque se met
   dans une CARTE dediee, generee automatiquement et retouchable (.cj.png + apercu colore), pas dans
   une regle de plus dans le shader. Mesurer aussi « ce qui ne doit PAS s'allumer » (test 12).
+- 2026-11-17 - grands sprites (Kainati, racine de la surface opaque ~250 px contre 49-87 pour la
+  demo) : tous les reglages en pixels (zones absorbees, lissages, contour, filtre majoritaire, carte
+  contre-jour, recalage dans le temps) etaient penses pour ~70 px et hachaient un grand sprite. Les
+  rendre PROPORTIONNELS a la taille : s = max(1, racine(surface opaque) / 96), mediane des frames,
+  longueurs x s, surfaces x s^2, s = 1 strictement inchange. Le neutre en aplats effacait le dessin
+  d'un grand sprite detaille (meches, nuances) : n'y retirer que l'ombrage a grande echelle et
+  garder les matieres claires sous 188 / 255 (paliers distincts au lieu de saturer au blanc).
+  Limites restantes sur Kainati : escaliers sous lampe de cote, contre-jour faible lampe au centre.

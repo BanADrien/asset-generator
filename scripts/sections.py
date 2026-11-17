@@ -171,6 +171,36 @@ def ramp_base(ramp, counts):
     return min(ramp, key=lambda c: math.dist(lab(c), m))
 
 
+# ---------------------------------------------------------------- echelle du sprite
+# Reglages en pixels (zones, lissages, contour, carte contre-jour) penses pour les sprites de la demo
+# (Agarica 67 x 94, loup, grizzly, crapaud : racine de la surface opaque 49 a 87 px). Un sprite plus
+# grand (Kainati, ~250) les multiplie par s = max(1, racine(surface opaque) / 96), mediane sur les
+# frames d'une animation, arrondie au centieme ; s = 1 : calcul strictement inchange. Meme calcul
+# que tools/lumiere/coeur.js du jeu (echelleSprite, aL, aS ; arrondis de Math.round).
+ECHELLE_REF = 96
+
+
+def js_round(x):
+    """Math.round de JavaScript (moitie vers le haut), et non round() de Python (moitie vers le pair)."""
+    return math.floor(x + 0.5)
+
+
+def echelle_sprite(ims):
+    r = sorted(math.sqrt(sum(im.convert("RGBA").getchannel("A").histogram()[128:])) for im in ims)
+    m = r[len(r) // 2] if r else 0
+    return max(1, js_round((m / ECHELLE_REF) * 100) / 100)
+
+
+def aL(v, s):
+    """longueur (px) a l'echelle s ; s = 1 : valeur d'origine telle quelle"""
+    return js_round(v * s) if s > 1 else v
+
+
+def aS(v, s):
+    """surface (px2) a l'echelle s"""
+    return js_round(v * s * s) if s > 1 else v
+
+
 # ---------------------------------------------------------------- geometrie
 def nearest_vectors(w, h, is_border, cand, R=8):
     """Pour chaque pixel de cand : (distance, vecteur pixel->bord le plus proche)."""
@@ -265,8 +295,75 @@ def merge_small(codes, minsize, keep):
 
 
 # ---------------------------------------------------------------- programme principal
-def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
-    """taille_ref : taille d'UNE frame quand im est une mosaique de frames (mode animation)."""
+def neutre_detaille(neutral, w, h, ech, opq, line_px, protected_px, col, ramp_of, rid_of, ramps, L):
+    """Grand sprite (s > 1) : le neutre en aplats effacait le dessin (meches, nuances). On ne retire que
+    l'ombrage a GRANDE echelle : couleur de base de la matiere + ecart du pixel a la moyenne locale de
+    sa matiere (luminance L*, fenetre de 2 s px de rayon), ramene a la couleur de la rampe la plus
+    proche (palette du sprite). Puis chaque matiere claire est assombrie (meme rapport pour toutes ses
+    couleurs) pour que sa couleur la plus claire reste sous 188 / 255 : x 1,36 (ambiance 0,36 + lampe 1)
+    au palier max = blanc, les paliers en dessous restent distincts. Port exact de neutreDetaille()
+    (coeur.js du jeu) : memes tables de sommes, meme ordre des operations."""
+    rho = aL(2, ech)
+    nR = len(ramps)
+    W1 = w + 1
+
+    def propre(p):
+        return p not in line_px and p not in protected_px and p in rid_of and ramp_of.get(col[p]) == rid_of[p]
+
+    pr = {p for p in opq if propre(p)}
+    sl, sn = [], []
+    for r in range(nR):
+        tl = [0.0] * (W1 * (h + 1))
+        tn = [0.0] * (W1 * (h + 1))
+        for y in range(h):
+            al = an = 0.0
+            for x in range(w):
+                p = (x, y)
+                if p in pr and rid_of[p] == r:
+                    al += L[col[p]]
+                    an += 1
+                tl[(y + 1) * W1 + x + 1] = tl[y * W1 + x + 1] + al
+                tn[(y + 1) * W1 + x + 1] = tn[y * W1 + x + 1] + an
+        sl.append(tl)
+        sn.append(tn)
+
+    def somme(t, x0, y0, x1, y1):
+        return t[y1 * W1 + x1] - t[y0 * W1 + x1] - t[y1 * W1 + x0] + t[y0 * W1 + x0]
+
+    out = dict(neutral)
+    for p in pr:
+        r = rid_of[p]
+        x, y = p
+        x0, y0, x1, y1 = max(0, x - rho), max(0, y - rho), min(w, x + rho + 1), min(h, y + rho + 1)
+        n = somme(sn[r], x0, y0, x1, y1)
+        if not n:
+            continue
+        cible = L[neutral[p]] + (L[col[p]] - somme(sl[r], x0, y0, x1, y1) / n)
+        best, bv = neutral[p], math.inf
+        for cc in ramps[r]:
+            v = abs(L[cc] - cible)
+            if v < bv:
+                bv, best = v, cc
+        out[p] = best
+    PLAFOND = 188
+    maxi = {}
+    for p in opq:
+        if p in line_px or p in protected_px or p not in rid_of:
+            continue
+        maxi[rid_of[p]] = max(maxi.get(rid_of[p], 0), max(out[p]))
+    for p in opq:
+        if p in line_px or p in protected_px or p not in rid_of:
+            neutral[p] = out[p]
+            continue
+        k = min(1, PLAFOND / (maxi.get(rid_of[p]) or 255))
+        c = out[p]
+        neutral[p] = c if k >= 1 else tuple(round(v * k) for v in c)
+
+
+def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None, echelle=1):
+    """taille_ref : taille d'UNE frame quand im est une mosaique de frames (mode animation) ;
+    echelle : s du sprite (echelle_sprite), reglages en pixels multiplies (grand sprite)."""
+    ech = echelle if echelle > 1 else 1
     w, h = im.size
     px = im.load()
     opq = {(x, y) for y in range(h) for x in range(w) if px[x, y][3] >= 128}
@@ -368,14 +465,23 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
         rid += 1
 
     def absorb(minsize):
-        changed = True
-        while changed:
+        # petites parties fondues dans leur voisine majoritaire, la plus petite d'abord (a taille
+        # egale : la premiere apparue), une a la fois ; tailles et membres tenus a jour (meme resultat
+        # que tout recompter apres chaque fusion, sans exploser sur un grand sprite)
+        pos, taille, premier, membres = {}, Counter(), {}, {}
+        for i, p in enumerate(region):
+            pos[p] = i
+            r = region[p]
+            taille[r] += 1
+            if r not in premier:
+                premier[r] = i
+                membres[r] = []
+            membres[r].append(p)
+        while True:
+            petites = sorted(((r, sz, premier[r]) for r, sz in taille.items() if sz < minsize), key=lambda t: (t[1], t[2]))
             changed = False
-            sizes = Counter(region.values())
-            for r, sz in sorted(sizes.items(), key=lambda kv: kv[1]):
-                if sz >= minsize:
-                    break
-                members = [p for p in region if region[p] == r]
+            for r, _, _ in petites:
+                members = sorted(membres[r], key=pos.get)
                 cnt = Counter()
                 for (x, y) in members:
                     for dx, dy in N8:
@@ -386,10 +492,15 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
                     nr = cnt.most_common(1)[0][0]
                     for p in members:
                         region[p] = nr
+                    taille[nr] += taille.pop(r)
+                    premier[nr] = min(premier[nr], premier.pop(r))
+                    membres[nr].extend(membres.pop(r))
                     changed = True
                     break
+            if not changed:
+                return
 
-    absorb(12)
+    absorb(aS(12, ech))
     # pixels de la bordure epaissie : rendus a la partie voisine de meme matiere (sinon la plus proche)
     todo = [p for p in body if p not in region]
     for _ in range(4):
@@ -410,7 +521,7 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
     for p in todo:
         region[p] = rid
         rid += 1
-    absorb(12)
+    absorb(aS(12, ech))
 
     def border(X, Y, p_region):
         q = (X, Y)
@@ -420,10 +531,12 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
 
     # vecteurs vers le bord de la partie (bombe) et vers le vide (contour exterieur)
     near = {}
+    par_region = {}
+    for p in region:
+        par_region.setdefault(region[p], []).append(p)
     for r in set(region.values()):
-        cand = [p for p in region if region[p] == r]
-        near.update(nearest_vectors(w, h, lambda X, Y, r=r: border(X, Y, r), cand, R=7))
-    out_vec = nearest_vectors(w, h, lambda X, Y: (X, Y) not in opq, opq, R=6)
+        near.update(nearest_vectors(w, h, lambda X, Y, r=r: border(X, Y, r), par_region[r], R=aL(7, ech)))
+    out_vec = nearest_vectors(w, h, lambda X, Y: (X, Y) not in opq, opq, R=aL(6, ech))
     dmax = Counter()
     for p, (d, _, _) in near.items():
         dmax[region[p]] = max(dmax[region[p]], d)
@@ -438,9 +551,10 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
     off = {p: (L[col[p]] - rmean[ramp_of[col[p]]]) / rstd[ramp_of[col[p]]]
            for p in body if p not in protected_px}
     soff = {}
+    rso = aL(2, ech)
     for p in body:
         x, y = p
-        vals = [off[q] for q in ((x + dx, y + dy) for dx in range(-2, 3) for dy in range(-2, 3))
+        vals = [off[q] for q in ((x + dx, y + dy) for dx in range(-rso, rso + 1) for dy in range(-rso, rso + 1))
                 if q in off and region.get(q) == region[p]]
         soff[p] = sum(vals) / len(vals) if vals else 0.0
     reg_off = Counter()
@@ -452,7 +566,7 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
 
     # volume d'ensemble : la silhouette floutee est une colline ; sa pente = bombe global
     # (le dos regarde vers le haut, le ventre vers le bas, le museau vers l'avant)
-    gblur = max(GBLUR_MIN, GBLUR_REL * min(taille_ref or (w, h)))
+    gblur = max(GBLUR_MIN * ech, GBLUR_REL * min(taille_ref or (w, h)))
     gp = int(2.5 * gblur) + 2
     mask = Image.new("L", (w + 2 * gp, h + 2 * gp), 0)
     for (x, y) in opq:
@@ -466,16 +580,25 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
 
     # bombe de chaque partie : la partie (sans ses traits) floutee seule, meme principe a petite echelle
     pgrad = {}
+    gpad = aL(GPAD, ech)
     for r in set(region.values()):
-        members = [p for p in region if region[p] == r]
-        pm = Image.new("L", (w + 2 * GPAD, h + 2 * GPAD), 0)
+        members = par_region[r]
+        rad = max(1.2 * ech, min(3.0 * ech, dmax[r] * 0.6))
+        # flou de la partie sur un rectangle autour d'elle (meme resultat que sur toute l'image tant
+        # que la marge couvre son etalement ; coeur.js fait de meme)
+        bx0, by0 = min(x for x, _ in members), min(y for _, y in members)
+        bx1, by1 = max(x for x, _ in members), max(y for _, y in members)
+        M = gpad + 3 * (math.ceil(rad) + 2)
+        PW, PH = w + 2 * gpad, h + 2 * gpad
+        CX0, CY0 = max(0, bx0 + gpad - M), max(0, by0 + gpad - M)
+        CW, CH = min(PW - 1, bx1 + gpad + M) - CX0 + 1, min(PH - 1, by1 + gpad + M) - CY0 + 1
+        pm = Image.new("L", (CW, CH), 0)
         for (x, y) in members:
-            pm.putpixel((x + GPAD, y + GPAD), 255)
-        rad = max(1.2, min(3.0, dmax[r] * 0.6))
+            pm.putpixel((x + gpad - CX0, y + gpad - CY0), 255)
         ph = pm.filter(ImageFilter.GaussianBlur(rad)).load()
         vals = {}
         for (x, y) in members:
-            X, Y = x + GPAD, y + GPAD
+            X, Y = x + gpad - CX0, y + gpad - CY0
             vals[(x, y)] = (-(ph[X + 1, Y] - ph[X - 1, Y]) / 2.0, (ph[X, Y + 1] - ph[X, Y - 1]) / 2.0)
         pmx = max((math.hypot(*v) for v in vals.values()), default=1.0) or 1.0
         for q, v in vals.items():
@@ -489,24 +612,24 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
         gn = math.hypot(gx, gy) or 1.0
         gk = W_GLOBAL * gm ** 0.8
         px_, py_ = pgrad[p]
-        s = 0.6 * soff[p] + 0.5 * reg_off[r] / reg_n[r]
-        s = max(-1.2, min(1.2, s))
-        wp = W_PART * min(1.0, dmax[r] / 3.0)   # petite partie : bombe propre attenue (moins de bruit)
+        sh = 0.6 * soff[p] + 0.5 * reg_off[r] / reg_n[r]
+        sh = max(-1.2, min(1.2, sh))
+        wp = W_PART * min(1.0, dmax[r] / (3.0 * ech))   # petite partie : bombe propre attenue (moins de bruit)
         ws = W_SHADE * (0.6 if peint else 1.0)  # image peinte : ombrage riche, on le suit moins
-        nx = gx / gn * gk + wp * px_ + ws * s * lx
-        ny = gy / gn * gk + wp * py_ + ws * s * ly
+        nx = gx / gn * gk + wp * px_ + ws * sh * lx
+        ny = gy / gn * gk + wp * py_ + ws * sh * ly
         codes[p] = quantize(nx, ny)
     # contour exterieur : rasant, tourne vers l'exterieur ; traits interieurs : comme leurs voisins
     outline = set()
     for p in line_px:
         d, vx, vy = out_vec[p]
-        if d <= 2.3:
+        if d <= 2.3 * ech:
             outline.add(p)
             codes[p] = quantize(vx / (math.hypot(vx, vy) or 1), -vy / (math.hypot(vx, vy) or 1))
     for p in protected_px:
         codes.setdefault(p, None)
     pending = [p for p in opq if codes.get(p) is None]
-    for _ in range(6):
+    for _ in range(aL(6, ech)):
         if not pending:
             break
         rest = []
@@ -526,8 +649,8 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
         if p not in regall:
             regall[p] = "o" if p in outline else "l"
     keep = outline
-    codes = mode_filter(codes, regall, keep, iters=5 if peint else 3)
-    codes = merge_small(codes, 10 if peint else 6, keep)
+    codes = mode_filter(codes, regall, keep, iters=aL(5 if peint else 3, ech))
+    codes = merge_small(codes, aS(10 if peint else 6, ech), keep)
     codes = heriter_bord(codes, opq)
 
     # neutre : chaque pixel prend la couleur de base de sa rampe ; les grains isoles (1-2 px d'une
@@ -545,7 +668,7 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
                 t = (x + dx, y + dy)
                 if t in rid_of and t not in seen and rid_of[t] == rid_of[p]:
                     seen.add(t); comp.append(t); q.append(t)
-        if len(comp) <= 2:
+        if len(comp) <= aS(2, ech):
             cnt = Counter(rid_of[t] for (x, y) in comp for t in ((x + dx, y + dy) for dx, dy in N8)
                           if t in rid_of and t not in comp)
             if cnt and cnt.most_common(1)[0][0] != rid_of[p]:
@@ -569,7 +692,7 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
     for (reg_, r), a_ in acc.items():
         par_rampe.setdefault(r, []).append((reg_, a_))
     for r, parts in par_rampe.items():
-        big = [(reg_, a_) for reg_, a_ in parts if a_[3] >= PART_MIN]
+        big = [(reg_, a_) for reg_, a_ in parts if a_[3] >= aS(PART_MIN, ech)]
         if len(big) < 2:
             continue
         ls = [a_[0] / a_[3] for _, a_ in big]
@@ -599,6 +722,8 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
             neutral[p] = c
         else:
             neutral[p] = part_base.get((region.get(p), rid_of[p]), base[rid_of[p]])
+    if ech > 1:
+        neutre_detaille(neutral, w, h, ech, opq, line_px, protected_px, col, ramp_of, rid_of, ramps, L)
     info = {"ramps": [(hexc(base[i]), [hexc(c) for c in sorted(r, key=lambda c: L[c])]) for i, r in enumerate(ramps)],
             "lines": sorted(hexc(c) for c in dark), "protected": sorted({hexc(col[p]) for p in protected_px}),
             "parts": len(set(region.values())), "region": region, "line_px": line_px, "outline": outline, "part_base": part_base}
@@ -868,7 +993,7 @@ CJ_FRANGE = 2      # adoucissement : 2 px dans la section voisine (x 0,5 par px)
 CJ_LISSE = 2       # direction lissee sur (2 x 2 + 1)^2 pixels de la meme zone
 
 
-def carte_cj(im, normales, neutre, pad=GEO_PAD):
+def carte_cj(im, normales, neutre, pad=GEO_PAD, echelle=1):
     """Carte contre-jour (format ci-dessus), calculee depuis la silhouette, les sections et les traits.
     Exposition : sources = pixels qui touchent l'exterieur (profondeur 1 de geometrie()) ;
     distance geodesique d (8 voisins, 1 / 1,41) SEULEMENT entre pixels de la meme section ; les
@@ -881,6 +1006,11 @@ def carte_cj(im, normales, neutre, pad=GEO_PAD):
     Direction : normale exterieure de la silhouette au pixel source le plus proche, heritee le long de
     la propagation puis lissee sur 5 x 5 pixels de la meme zone."""
     import heapq
+    ech = echelle if echelle > 1 else 1
+    # grand sprite : contour 2 s, frange 2 s passes a 0,5^(1/s) (meme attenuation totale), direction
+    # lissee 2 s, decroissance jusqu'a 12 s px
+    contour, frange, lisse, portee = CJ_CONTOUR * ech, aL(CJ_FRANGE, ech), aL(CJ_LISSE, ech), CJ_PORTEE * ech
+    demi = 0.5 ** (1 / ech) if ech > 1 else 0.5
     w, h = im.size
     g = geometrie(im, pad).load()
     nm, ne = normales.convert("RGBA").load(), neutre.convert("RGBA").load()
@@ -893,7 +1023,7 @@ def carte_cj(im, normales, neutre, pad=GEO_PAD):
         v = math.hypot(nm[p][0] / 255 * 2 - 1, nm[p][1] / 255 * 2 - 1) / 0.93
         pente[p] = 0.0 if v < 0.05 else min(1.0, v)
     lum = {p: (0.3 * ne[p][0] + 0.59 * ne[p][1] + 0.11 * ne[p][2]) / 255 for p in opq}
-    passe = {p: lum[p] >= CJ_SOMBRE or D[p] <= CJ_CONTOUR for p in opq}
+    passe = {p: lum[p] >= CJ_SOMBRE or D[p] <= contour for p in opq}
     # normale exterieure aux sources (somme des directions vers le vide ; y vers le HAUT)
     src = {}
     for p in opq:
@@ -935,12 +1065,12 @@ def carte_cj(im, normales, neutre, pad=GEO_PAD):
         prof.append(dm)
     ex, dl = {}, {}
     for p, d in dist.items():
-        L = min(prof[zone[p]] + 1.0, CJ_PORTEE)
+        L = min(prof[zone[p]] + 1.0, portee)
         t = min(1.0, d / L)
         ex[p] = (1.0 - t * t * (3 - 2 * t)) * pente[p]
         ax = ay = 0.0
-        for a in range(-CJ_LISSE, CJ_LISSE + 1):
-            for b in range(-CJ_LISSE, CJ_LISSE + 1):
+        for a in range(-lisse, lisse + 1):
+            for b in range(-lisse, lisse + 1):
                 q = (p[0] + a, p[1] + b)
                 if zone.get(q) == zone[p]:
                     ax += vdir[q][0]
@@ -950,7 +1080,7 @@ def carte_cj(im, normales, neutre, pad=GEO_PAD):
     # frange d'adoucissement : chaque pixel recoit au moins la moitie de son voisin le plus expose
     # (2 passes : x 0,5 puis x 0,25), y compris dans une autre section ou une zone exposee ailleurs,
     # jamais a travers un trait
-    for _ in range(CJ_FRANGE):
+    for _ in range(frange):
         ajout = {}
         for p in opq:
             if not passe[p]:
@@ -960,8 +1090,8 @@ def carte_cj(im, normales, neutre, pad=GEO_PAD):
                 q = (p[0] + dx, p[1] + dy)
                 if q in ex and passe[q] and ex[q] > best:
                     best, bd = ex[q], dl[q]
-            if 0.5 * best > ex.get(p, 0.0):
-                ajout[p] = (0.5 * best, bd if p not in dl else dl[p])
+            if demi * best > ex.get(p, 0.0):
+                ajout[p] = (demi * best, bd if p not in dl else dl[p])
         for p, (v, d_) in ajout.items():
             ex[p], dl[p] = v, d_
     out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -1013,7 +1143,7 @@ def cj_depuis_apercu(ap):
     return out
 
 
-def ecrire_cj(stem, depuis="", im=None):
+def ecrire_cj(stem, depuis="", im=None, echelle=None):
     """<stem>.cj.png + <stem>.cj-apercu.png, depuis le sprite (im, sinon <stem>.png), .normales.png et
     .neutre.png, ou depuis un apercu retouche (depuis = chemin de l'apercu)."""
     if depuis:
@@ -1021,7 +1151,8 @@ def ecrire_cj(stem, depuis="", im=None):
     else:
         im = (im or Image.open(stem + ".png")).convert("RGBA")
         neu = stem + ".neutre.png"
-        cj = carte_cj(im, Image.open(stem + ".normales.png"), Image.open(neu) if os.path.exists(neu) else im)
+        cj = carte_cj(im, Image.open(stem + ".normales.png"), Image.open(neu) if os.path.exists(neu) else im,
+                      echelle=echelle_sprite([im]) if echelle is None else echelle)
     cj.save(stem + ".cj.png")
     if not depuis:
         cj_apercu(cj).save(stem + ".cj-apercu.png")
@@ -1074,18 +1205,22 @@ def echantillonner(im, f, phase=None):
 
 
 # ---------------------------------------------------------------- animation
-def meilleur_decalage(ca, cb, r=3):
-    """Decalage (dx, dy) qui superpose le mieux la frame b sur la frame a (memes couleurs)."""
+def meilleur_decalage(ca, cb, r=3, pas=1):
+    """Decalage (dx, dy) qui superpose le mieux la frame b sur la frame a (memes couleurs).
+    pas > 1 (grand sprite) : un pixel sur pas compte."""
     best, bv = (0, 0), -1
+    items = list(ca.items())
+    if pas > 1:
+        items = items[::pas]
     for dx in range(-r, r + 1):
         for dy in range(-r, r + 1):
-            v = sum(1 for (x, y), c in ca.items() if cb.get((x + dx, y + dy)) == c)
+            v = sum(1 for (x, y), c in items if cb.get((x + dx, y + dy)) == c)
             if v > bv:
                 best, bv = (dx, dy), v
     return best
 
 
-def lisser_temps(codes, cols, keep):
+def lisser_temps(codes, cols, keep, echelle=1):
     """Anti-clignotement : un pixel qui garde la meme matiere d'une frame a l'autre (apres recalage
     du corps entier, qui monte et descend en marchant) ne bouge pas vraiment ; il prend la direction
     majoritaire sur sa frame et ses deux voisines (boucle). Renvoie (codes lisses, taux avant, apres)."""
@@ -1094,7 +1229,7 @@ def lisser_temps(codes, cols, keep):
     for i in range(n):
         for j in ((i - 1) % n, (i + 1) % n):
             if (i, j) not in shifts:
-                shifts[(i, j)] = meilleur_decalage(cols[i], cols[j])
+                shifts[(i, j)] = meilleur_decalage(cols[i], cols[j], aL(3, echelle), aS(1, echelle))
 
     def taux(cds):
         diff = tot = 0
@@ -1127,7 +1262,7 @@ def lisser_temps(codes, cols, keep):
             best, v = votes.most_common(1)[0]
             if v >= 2.0:
                 new[p] = best
-        out.append(merge_small(new, 4, keep[i]))
+        out.append(merge_small(new, aS(4, echelle), keep[i]))
     return out, avant, taux(out)
 
 
@@ -1173,7 +1308,8 @@ def animation(paths, stem, echelle=0.0, ncol=32, fps=12, vitesse=0, garder=(), r
     mosa = Image.new("RGBA", (len(canv) * (w + gap) - gap, h), (0, 0, 0, 0))
     for i, c in enumerate(canv):
         mosa.paste(c, (i * (w + gap), 0))
-    opq, neutral, codes, info = analyse(mosa, garder, rampes, peint=echelle > 0, taille_ref=(w, h))
+    ech = echelle_sprite(canv)   # mediane des frames ; grand sprite : reglages en pixels x ech
+    opq, neutral, codes, info = analyse(mosa, garder, rampes, peint=echelle > 0, taille_ref=(w, h), echelle=ech)
     mpx = mosa.load()
     fc, fn, fcol, fkeep = [], [], [], []
     for i in range(len(canv)):
@@ -1187,18 +1323,20 @@ def animation(paths, stem, echelle=0.0, ncol=32, fps=12, vitesse=0, garder=(), r
     # pas les couleurs exactes, l'ombrage peint variant un peu d'une frame a l'autre
     mat = {parse_hex(c): k for k, (_, cs) in enumerate(info["ramps"]) for c in cs}
     fmat = [{p: mat.get(c, c) for p, c in fr.items()} for fr in fcol]
-    fc, avant, apres = lisser_temps(fc, fmat, fkeep)
+    fc, avant, apres = lisser_temps(fc, fmat, fkeep, ech)
     for _ in range(3):
-        fc, _, apres = lisser_temps(fc, fmat, fkeep)
+        fc, _, apres = lisser_temps(fc, fmat, fkeep, ech)
     fc = [heriter_bord(c, set(c)) for c in fc]
     names = []
     for i, c in enumerate(canv):
         fs = f"{stem}_{i}"
         c.save(fs + ".png")
         save_maps(c, set(fc[i]), fn[i], fc[i], fs)
-        ecrire_cj(fs)
+        ecrire_cj(fs, echelle=ech)
         names.append(os.path.basename(fs) + ".png")
     man = {"nom": os.path.basename(stem), "fps": fps, "vitesse": vitesse, "frames": names}
+    if ech > 1:
+        man["s"] = ech
     with open(stem + ".anim.json", "w", encoding="utf-8") as f:
         json.dump(man, f, indent=1)
     planche_anim(stem, len(canv))
@@ -1288,7 +1426,10 @@ def main():
         for p in ecrire_cj(stem, im=im):
             print(p)
     else:
-        opq, neutral, codes, info = analyse(im, garder, rampes, peint=a.echelle_jeu > 0)
+        ech = echelle_sprite([im])
+        if ech > 1:
+            print("grand sprite : reglages en pixels x %g" % ech)
+        opq, neutral, codes, info = analyse(im, garder, rampes, peint=a.echelle_jeu > 0, echelle=ech)
         for p in save_maps(im, opq, neutral, codes, stem).values():
             print(p)
         for p in ecrire_cj(stem, im=im):
