@@ -34,6 +34,26 @@ d'origine moins suivi, nettoyage des zones plus fort. Une rampe ne couvre pas pl
 luminosite (L*) : peau claire, tunique beige et pantalon restent des matieres separees.
 Travailler sur l'image HD d'origine donnerait des zones trop fines, perdues a la reduction.
 
+## Animation (`--animation`) : toutes les frames ensemble
+    & $py -I scripts/sections.py agarica/assets/sprites/agarica_walk_frames --animation --echelle-jeu 0.24 --fps 12 --vitesse 190 --sortie W/agarica-marche
+    & $py -I scripts/viewer.py W/agarica-marche.anim.json --regarde gauche --out W/agarica-marche-lumiere.html
+Frames, ordre et vitesse : dans le code du jeu (`anims.create` : marche d'Agarica = agarica-walk-0..3,
+frameRate 12, `AGARICA_WALK_FRAME_INDICES` de Player.js ; vitesse de marche moveMaxSpeed 190 px/s).
+Pour que l'eclairage ne clignote pas :
+- meme toile pour toutes les frames, calee en bas au centre (origine (0.5, 1) du jeu : pieds au
+  meme niveau), meme cadrage (union des boites), meme reduction ;
+- UNE palette calculee sur toutes les frames, et les matieres/sections calculees en une seule
+  analyse sur une mosaique des frames (memes rampes, memes regles, memes seuils) ;
+- lissage dans le temps : apres recalage global de la frame voisine (le corps monte et descend),
+  un pixel qui garde la meme matiere prend la direction majoritaire sur sa frame et ses deux
+  voisines (4 passes) ; une partie qui bouge vraiment change de matiere sous le pixel et garde
+  sa propre orientation. Le script affiche le taux de changement avant/apres (marche
+  d'Agarica : 38 % -> 15 %, le reste = cape et jambes qui bougent).
+Sorties : `<nom>_N.png` (+ `.neutre`, `.normales`, `.sections`), `<nom>.planche.png` (une colonne
+par frame : origine, neutre, sections, eclaire a gauche, a droite), `<nom>.anim.json` (frames, fps,
+vitesse) que `viewer.py` lit : lecture/pause, frame par frame, vitesse, « marcher » (aller-retour
+devant une lumiere fixe), « sens ».
+
 ## Comment le decoupage est fait
 1. Matieres : les couleurs voisines dans l'image, de meme teinte et meme saturation relative,
    forment une rampe (corps olive, gorge creme, taches brun-rouge). Neutre = couleur de la
@@ -110,9 +130,11 @@ Light2D existe en 3.80 : carte de normales jointe a la texture, lumieres de scen
 Points a savoir en 3.80 :
 - Le jeu filtre en lineaire par defaut : forcer NEAREST sur ces textures (setFilter ci-dessus).
 - La hauteur de lumiere est fixe dans le shader Light2D (z = 0,1) ; pas de reglage par lampe.
-- `flipX` ne retourne pas les normales (le rouge n'est pas inverse) : pour un sprite tourne a
-  gauche, charger aussi `--gauche` (`crapaud.neutre-gauche.png` + `crapaud.normales-gauche.png`)
-  sous une autre cle et changer de texture au lieu de flipX.
+- `flipX` ne retourne pas les normales (le rouge n'est pas inverse) : un sprite retourne est
+  eclaire du mauvais cote. Deux solutions : textures `--gauche` (`*.neutre-gauche.png` +
+  `*.normales-gauche.png`, autre cle, on change de texture au lieu de flipX), ou mieux le
+  pipeline ci-dessous qui inverse normal.x quand le sprite est retourne (c'est ce que fait la
+  case « sens » de la page de test).
 - Nombre de lumieres : 10 par defaut (`render: { maxLights }` dans la config du jeu).
 - Tout objet qui doit etre eclaire doit avoir le pipeline Light2D (sinon il reste plein jour).
 
@@ -135,3 +157,25 @@ puis :
     crapaud.setPipeline('Paliers');
 
 C'est la meme formule que la page de test (paliers = floor(e x N) / (N - 1)).
+
+### Sprite retourne (flipX) : inverser normal.x dans le meme pipeline
+Dans la copie du shader, remplacer la ligne du calcul de `normal` par :
+
+    uniform float uFlipX;                                  // 1.0 normal, -1.0 retourne
+    vec3 nm = normalMap * 2.0 - 1.0;
+    nm.x *= uFlipX;
+    vec3 normal = normalize(uInverseRotationMatrix * nm);
+
+et dans la classe, avant chaque sprite (on vide le lot quand le sens change, comme Phaser le fait
+deja pour la rotation) :
+
+    batchSprite(gameObject, camera, parentMatrix) {
+      const f = gameObject.flipX ? -1 : 1;
+      if (f !== this.flipCourant) { this.flush(); this.set1f('uFlipX', f); this.flipCourant = f; }
+      super.batchSprite(gameObject, camera, parentMatrix);
+    }
+    onRender(scene, camera) { super.onRender(scene, camera); this.flipCourant = null; }
+
+Le joueur garde `setFlipX` comme aujourd'hui ; la lumiere eclaire alors le bon cote. A verifier
+en jeu (3.80.1 : `batchSprite` et `onRender` existent sur LightPipeline, `set1f` vient de
+WebGLPipeline).

@@ -21,6 +21,9 @@ Usage :
   --apercu : <nom>.apercu.png (origine | neutre | sections | eclaire gauche | eclaire droite, x4)
   --gauche : <nom>.neutre-gauche.png + <nom>.normales-gauche.png (sprite retourne pour regarder a
              gauche, rouge des normales inverse ; flipX de Phaser 3.80 ne corrige pas les normales)
+  Animation (toutes les frames ensemble, sans clignotement) :
+  python -I sections.py FRAME0.png FRAME1.png ... --animation [--echelle-jeu 0.24] --fps 12 --sortie W/marche
+  -> W/marche_N.png + .neutre/.normales/.sections de chaque frame, W/marche.planche.png, W/marche.anim.json
   Image peinte (sprite HD du jeu, affiche reduit par setScale) :
   python -I sections.py FRAME_HD.png --echelle-jeu 0.4 [--couleurs 24] --sortie W/loup
   -> W/loup.png (taille reelle a l'ecran, alpha net, palette reduite) puis les memes sorties.
@@ -238,7 +241,8 @@ def merge_small(codes, minsize, keep):
 
 
 # ---------------------------------------------------------------- programme principal
-def analyse(im, garder=(), rampes=(), peint=False):
+def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None):
+    """taille_ref : taille d'UNE frame quand im est une mosaique de frames (mode animation)."""
     w, h = im.size
     px = im.load()
     opq = {(x, y) for y in range(h) for x in range(w) if px[x, y][3] >= 128}
@@ -424,7 +428,7 @@ def analyse(im, garder=(), rampes=(), peint=False):
 
     # volume d'ensemble : la silhouette floutee est une colline ; sa pente = bombe global
     # (le dos regarde vers le haut, le ventre vers le bas, le museau vers l'avant)
-    gblur = max(GBLUR_MIN, GBLUR_REL * min(w, h))
+    gblur = max(GBLUR_MIN, GBLUR_REL * min(taille_ref or (w, h)))
     gp = int(2.5 * gblur) + 2
     mask = Image.new("L", (w + 2 * gp, h + 2 * gp), 0)
     for (x, y) in opq:
@@ -531,7 +535,7 @@ def analyse(im, garder=(), rampes=(), peint=False):
             neutral[p] = base[rid_of[p]]
     info = {"ramps": [(hexc(base[i]), [hexc(c) for c in sorted(r, key=lambda c: L[c])]) for i, r in enumerate(ramps)],
             "lines": sorted(hexc(c) for c in dark), "protected": sorted({hexc(col[p]) for p in protected_px}),
-            "parts": len(set(region.values())), "region": region, "line_px": line_px}
+            "parts": len(set(region.values())), "region": region, "line_px": line_px, "outline": outline}
     return opq, neutral, codes, info
 
 
@@ -696,9 +700,158 @@ def peint_vers_jeu(im, echelle, ncol=32):
     return out.crop(out.getchannel("A").getbbox())
 
 
+# ---------------------------------------------------------------- animation
+def meilleur_decalage(ca, cb, r=3):
+    """Decalage (dx, dy) qui superpose le mieux la frame b sur la frame a (memes couleurs)."""
+    best, bv = (0, 0), -1
+    for dx in range(-r, r + 1):
+        for dy in range(-r, r + 1):
+            v = sum(1 for (x, y), c in ca.items() if cb.get((x + dx, y + dy)) == c)
+            if v > bv:
+                best, bv = (dx, dy), v
+    return best
+
+
+def lisser_temps(codes, cols, keep):
+    """Anti-clignotement : un pixel qui garde la meme matiere d'une frame a l'autre (apres recalage
+    du corps entier, qui monte et descend en marchant) ne bouge pas vraiment ; il prend la direction
+    majoritaire sur sa frame et ses deux voisines (boucle). Renvoie (codes lisses, taux avant, apres)."""
+    n = len(codes)
+    shifts = {}
+    for i in range(n):
+        for j in ((i - 1) % n, (i + 1) % n):
+            if (i, j) not in shifts:
+                shifts[(i, j)] = meilleur_decalage(cols[i], cols[j])
+
+    def taux(cds):
+        diff = tot = 0
+        for i in range(n):
+            j = (i + 1) % n
+            dx, dy = shifts[(i, j)]
+            for p, c in cols[i].items():
+                q = (p[0] + dx, p[1] + dy)
+                if p in keep[i] or cols[j].get(q) != c:
+                    continue
+                tot += 1
+                diff += cds[i][p] != cds[j][q]
+        return diff / max(1, tot)
+
+    avant = taux(codes)
+    out = []
+    for i in range(n):
+        new = dict(codes[i])
+        for p, c in cols[i].items():
+            if p in keep[i]:
+                continue
+            votes = Counter({codes[i][p]: 1.0})
+            for j in ((i - 1) % n, (i + 1) % n):
+                dx, dy = shifts[(i, j)]
+                # position recalee, et ses 8 voisines a demi-poids (un bord de zone qui tremble d'1 px)
+                for ox, oy in ((0, 0),) + N8:
+                    q = (p[0] + dx + ox, p[1] + dy + oy)
+                    if cols[j].get(q) == c:
+                        votes[codes[j][q]] += 1.0 if (ox, oy) == (0, 0) else 0.25
+            best, v = votes.most_common(1)[0]
+            if v >= 2.0:
+                new[p] = best
+        out.append(merge_small(new, 4, keep[i]))
+    return out, avant, taux(out)
+
+
+def animation(paths, stem, echelle=0.0, ncol=32, fps=12, vitesse=0, garder=(), rampes=()):
+    """Toutes les frames d'une animation traitees ENSEMBLE : meme toile calee en bas au centre
+    (origine (0.5, 1) de Phaser : pieds au meme niveau), meme cadrage, meme reduction, meme palette,
+    memes matieres (analyse d'une mosaique des frames), puis lissage dans le temps."""
+    import json
+    frames = [Image.open(p).convert("RGBA") for p in paths]
+    W, H = max(f.width for f in frames), max(f.height for f in frames)
+    canv = []
+    for f in frames:
+        c = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        c.paste(f, ((W - f.width) // 2, H - f.height))
+        canv.append(c)
+    boxes = [c.getchannel("A").point(lambda v: 255 if v >= 24 else 0).getbbox() for c in canv]
+    box = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+    canv = [c.crop(box) for c in canv]
+    if echelle > 0:
+        w, h = max(1, round(canv[0].width * echelle)), max(1, round(canv[0].height * echelle))
+        small = [c.convert("RGBa").resize((w, h), Image.LANCZOS).convert("RGBA") for c in canv]
+        allc = []
+        for im in small:
+            px = im.load()
+            allc += [px[x, y][:3] for y in range(h) for x in range(w) if px[x, y][3] >= 128]
+        remap = palette_lab(allc, ncol)   # UNE palette pour toutes les frames
+        canv = []
+        for im in small:
+            o = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            px = im.load()
+            for y in range(h):
+                for x in range(w):
+                    if px[x, y][3] >= 128:
+                        o.putpixel((x, y), remap[px[x, y][:3]] + (255,))
+            canv.append(o)
+    w, h = canv[0].size
+    gap = 24
+    mosa = Image.new("RGBA", (len(canv) * (w + gap) - gap, h), (0, 0, 0, 0))
+    for i, c in enumerate(canv):
+        mosa.paste(c, (i * (w + gap), 0))
+    opq, neutral, codes, info = analyse(mosa, garder, rampes, peint=echelle > 0, taille_ref=(w, h))
+    mpx = mosa.load()
+    fc, fn, fcol, fkeep = [], [], [], []
+    for i in range(len(canv)):
+        x0 = i * (w + gap)
+        sel = [p for p in opq if x0 <= p[0] < x0 + w]
+        fc.append({(x - x0, y): codes[(x, y)] for x, y in sel})
+        fn.append({(x - x0, y): neutral[(x, y)] for x, y in sel})
+        fcol.append({(x - x0, y): mpx[x, y][:3] for x, y in sel})
+        fkeep.append({(x - x0, y) for x, y in sel if (x, y) in info["outline"]})
+    # matiere de chaque pixel (rampe ; lignes et details : leur couleur) : on compare les matieres,
+    # pas les couleurs exactes, l'ombrage peint variant un peu d'une frame a l'autre
+    mat = {parse_hex(c): k for k, (_, cs) in enumerate(info["ramps"]) for c in cs}
+    fmat = [{p: mat.get(c, c) for p, c in fr.items()} for fr in fcol]
+    fc, avant, apres = lisser_temps(fc, fmat, fkeep)
+    for _ in range(3):
+        fc, _, apres = lisser_temps(fc, fmat, fkeep)
+    names = []
+    for i, c in enumerate(canv):
+        fs = f"{stem}_{i}"
+        c.save(fs + ".png")
+        save_maps(c, set(fc[i]), fn[i], fc[i], fs)
+        names.append(os.path.basename(fs) + ".png")
+    man = {"nom": os.path.basename(stem), "fps": fps, "vitesse": vitesse, "frames": names}
+    with open(stem + ".anim.json", "w", encoding="utf-8") as f:
+        json.dump(man, f, indent=1)
+    planche_anim(stem, len(canv))
+    return info, avant, apres, (w, h)
+
+
+def planche_anim(stem, n, z=4):
+    """Planche : une colonne par frame ; lignes origine, neutre, sections, eclaire gauche, eclaire droite."""
+    rows = []
+    for i in range(n):
+        fs = f"{stem}_{i}"
+        o = Image.open(fs + ".png").convert("RGBA")
+        ne = Image.open(fs + ".neutre.png").convert("RGBA")
+        no = Image.open(fs + ".normales.png").convert("RGBA")
+        se = Image.open(fs + ".sections.png").convert("RGBA")
+        rows.append([o, ne, se, light(ne, no, (-1, 0.5, 1.0)), light(ne, no, (1, 0.5, 1.0))])
+    w, h = rows[0][0].size
+    pad = 4
+    b = Image.new("RGBA", (n * (w * z + pad) + pad, 5 * (h * z + pad) + pad), (13, 11, 26, 255))
+    for i, col in enumerate(rows):
+        for r, t in enumerate(col):
+            b.alpha_composite(t.resize((w * z, h * z), Image.NEAREST),
+                              (pad + i * (w * z + pad), pad + r * (h * z + pad)))
+    b.save(stem + ".planche.png")
+    return stem + ".planche.png"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("sprite")
+    ap.add_argument("sprite", nargs="+", help="un sprite ; ou, avec --animation, les frames (ou un dossier)")
+    ap.add_argument("--animation", action="store_true", help="frames traitees ensemble (voir animation())")
+    ap.add_argument("--fps", type=int, default=12, help="animation : frameRate du jeu (anims.create)")
+    ap.add_argument("--vitesse", type=int, default=0, help="animation : vitesse de deplacement en jeu (px/s)")
     ap.add_argument("--depuis-sections", default="", help="sections.png retouche -> recalcule les normales")
     ap.add_argument("--garder", default="", help="couleurs hex a garder telles quelles (details), ex. dea019,fdfdfd")
     ap.add_argument("--rampes", default="", help='forcer des rampes : "hex,hex;hex,hex"')
@@ -710,6 +863,25 @@ def main():
     ap.add_argument("--couleurs", type=int, default=32, help="mode image peinte : nombre de couleurs")
     ap.add_argument("--sortie", default="", help="chemin de base des sorties (defaut : celui du sprite)")
     a = ap.parse_args()
+    garder = [g for g in a.garder.split(",") if g.strip()]
+    rampes = [r for r in a.rampes.split(";") if r.strip()]
+    if a.animation:
+        paths = []
+        for s_ in a.sprite:
+            if os.path.isdir(s_):
+                paths += sorted(os.path.join(s_, f) for f in os.listdir(s_) if f.lower().endswith(".png"))
+            else:
+                paths.append(s_)
+        stem = os.path.splitext(a.sortie or paths[0])[0]
+        info, avant, apres, taille = animation(paths, stem, a.echelle_jeu, a.couleurs, a.fps, a.vitesse,
+                                               garder, rampes)
+        print("%d frames %d x %d -> %s_N.png (+ .neutre .normales .sections), %s.planche.png, %s.anim.json"
+              % (len(paths), taille[0], taille[1], stem, stem, stem))
+        print("rampes communes :", " | ".join("%s <- %s" % (b, " ".join(r)) for b, r in info["ramps"]))
+        print("orientation qui change sans que la matiere change (frame suivante) : %.1f %% -> %.1f %% apres lissage"
+              % (100 * avant, 100 * apres))
+        return
+    a.sprite = a.sprite[0]
     stem = os.path.splitext(a.sortie or a.sprite)[0]
     im = Image.open(a.sprite).convert("RGBA")
     if a.echelle_jeu > 0:
@@ -721,8 +893,7 @@ def main():
         print(p)
         print("sections lues :", ", ".join(sorted(used)))
     else:
-        opq, neutral, codes, info = analyse(im, [g for g in a.garder.split(",") if g.strip()],
-                                            [r for r in a.rampes.split(";") if r.strip()], peint=a.echelle_jeu > 0)
+        opq, neutral, codes, info = analyse(im, garder, rampes, peint=a.echelle_jeu > 0)
         for p in save_maps(im, opq, neutral, codes, stem).values():
             print(p)
         print("rampes (couleur neutre <- couleurs) :")

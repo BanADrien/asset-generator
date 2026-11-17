@@ -1,11 +1,14 @@
 """Page de test d'eclairage AUTONOME (images integrees en base64, s'ouvre par double-clic).
 
-Usage : python -I viewer.py SPRITE.png [SPRITE2.png ...] [--noms "crapaud,loup"] [--titre T]
+Usage : python -I viewer.py SPRITE.png|ANIM.anim.json [SPRITE2.png ...] [--regarde gauche] [--noms "crapaud,loup"] [--titre T]
                             [--echelle 6] [--out CHEMIN.html]
 Lit a cote de chaque sprite : <nom>.neutre.png, <nom>.normales.png, <nom>.sections.png (sorties de
 sections.py). Un seul sprite -> <nom>-lumiere.html a cote de lui ; plusieurs -> une seule page
 avec un selecteur d'asset et une case « tous cote a cote » (meme lumiere, meme echelle, tailles
 relatives du jeu), ecrite a --out (defaut : assets-lumiere.html a cote du 1er sprite).
+Animation (.anim.json de sections.py --animation) : lecture en boucle a la vitesse du jeu,
+pause, frame par frame, vitesse, « marcher » (aller-retour devant une lumiere fixe) et « sens »
+(miroir + normal.x inverse).
 N'ecrase jamais un fichier existant (suffixe -2, -3...).
 """
 import argparse, base64, json, os, sys
@@ -21,7 +24,7 @@ def data_uri(path):
         return "data:image/png;base64," + base64.b64encode(f.read()).decode("ascii")
 
 
-def asset(sprite, nom):
+def images(sprite):
     stem = os.path.splitext(sprite)[0]
     imgs = {"origine": sprite}
     for k in ("neutre", "normales", "sections"):
@@ -29,25 +32,38 @@ def asset(sprite, nom):
         if not os.path.exists(p):
             sys.exit(f"manque {p} : lancer d'abord sections.py {sprite}")
         imgs[k] = p
-    return {"nom": nom or os.path.basename(stem), "images": {k: data_uri(p) for k, p in imgs.items()}}
+    return {k: data_uri(p) for k, p in imgs.items()}
+
+
+def asset(sprite, nom, regarde="droite"):
+    if sprite.endswith(".anim.json"):   # animation (sections.py --animation)
+        with open(sprite, encoding="utf-8") as f:
+            man = json.load(f)
+        d = os.path.dirname(sprite)
+        return {"nom": nom or man["nom"], "fps": man.get("fps", 12), "vitesse": man.get("vitesse", 0),
+                "regarde": man.get("regarde", regarde),
+                "frames": [{"images": images(os.path.join(d, fr))} for fr in man["frames"]]}
+    return {"nom": nom or os.path.basename(os.path.splitext(sprite)[0]), "regarde": regarde,
+            "images": images(sprite)}
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("sprites", nargs="+")
+    ap.add_argument("sprites", nargs="+", help="sprites .png ou animations .anim.json (sections.py --animation)")
+    ap.add_argument("--regarde", default="", help="sens d'origine des sprites : droite (defaut) ou gauche")
     ap.add_argument("--noms", default="", help="noms affiches, separes par des virgules")
     ap.add_argument("--titre", default="")
     ap.add_argument("--echelle", type=int, default=6, help="agrandissement entier par defaut (x6)")
     ap.add_argument("--out", default="")
     a = ap.parse_args()
     noms = [n.strip() for n in a.noms.split(",")] if a.noms else []
-    assets = [asset(s, noms[i] if i < len(noms) else "") for i, s in enumerate(a.sprites)]
+    assets = [asset(s, noms[i] if i < len(noms) else "", a.regarde or "droite") for i, s in enumerate(a.sprites)]
     titre = a.titre or (assets[0]["nom"] if len(assets) == 1 else "Assets")
     donnees = {"titre": titre, "echelle": max(1, a.echelle), "assets": assets}
     with open(TEMPLATE, encoding="utf-8") as f:
         html = f.read()
     html = html.replace("/*__DONNEES__*/null", json.dumps(donnees))
-    first = os.path.splitext(a.sprites[0])[0]
+    first = os.path.splitext(a.sprites[0].replace(".anim.json", ".png"))[0]
     out = a.out or (first + "-lumiere.html" if len(assets) == 1
                     else os.path.join(os.path.dirname(first), "assets-lumiere.html"))
     out = unique_path(os.path.dirname(os.path.abspath(out)), os.path.basename(out))

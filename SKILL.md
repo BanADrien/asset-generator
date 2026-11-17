@@ -92,6 +92,13 @@ Detail, table des couleurs et integration Phaser : `references/lumiere.md`.
    `lumiere.md`), gardee seulement si la silhouette est identique au pixel pres.
    Sprite HD du jeu (image peinte affichee reduite) : `--echelle-jeu <setScale du code>
    --sortie W/<nom>` le ramene d'abord a sa taille vue en jeu (32 couleurs, alpha net).
+   ANIMATION (marche, course...) : frames, ordre et frameRate lus dans le code du jeu
+   (`anims.create`) ; toutes les frames en UNE commande pour eviter le clignotement :
+   `sections.py <frames ou dossier> --animation [--echelle-jeu S] --fps F --vitesse V --sortie W/<nom>`
+   (meme toile calee aux pieds, meme palette, memes matieres, lissage dans le temps) ->
+   `<nom>_N.*`, `<nom>.planche.png`, `<nom>.anim.json` ; page :
+   `viewer.py W/<nom>.anim.json [--regarde gauche]`. Livraison : `<nom>-lumiere.html` + dossier
+   `<nom>-sections\` (frames neutres, normales, sections, planche).
 2. Retouche a la main de `sections.png` par l'utilisateur -> `--depuis-sections` recalcule les
    normales. Sprite qui regarde a gauche dans le jeu : `--gauche`.
 3. `& $py -I scripts/viewer.py W/<nom>.png --echelle 6` -> `<nom>-lumiere.html` autonome ;

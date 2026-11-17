@@ -69,6 +69,21 @@
       <div class="ligne"><select id="asset" aria-label="Asset affiche"></select></div>
       <label class="c"><input type="checkbox" id="tous"> <span id="tous-txt">Tous cote a cote</span></label>
     </fieldset>
+    <fieldset id="bloc-anim" hidden>
+      <legend>Animation</legend>
+      <div class="ligne">
+        <div class="boutons">
+          <button type="button" id="prec" aria-label="Frame precedente">&lt;</button>
+          <button type="button" id="lecture">Pause</button>
+          <button type="button" id="suiv" aria-label="Frame suivante">&gt;</button>
+        </div>
+        <span class="pale" id="num-frame"></span>
+      </div>
+      <label class="r">Vitesse <output id="o-vitesse"></output>
+        <input type="range" id="vitesse" min="0.25" max="2" step="0.25" value="1"></label>
+      <label class="c"><input type="checkbox" id="marcher"> Marcher (aller-retour devant la lumiere)</label>
+      <label class="c"><input type="checkbox" id="sens"> Sens : retourner le sprite</label>
+    </fieldset>
     <fieldset>
       <legend>Lumiere</legend>
       <div class="ligne">
@@ -110,7 +125,9 @@
     </fieldset>
     <p class="aide">Le sprite neutre est multiplie par la lumiere recue par chaque section
       (normales), puis arrondi en paliers. Cote a cote : meme echelle et meme lumiere pour tous,
-      tailles relatives du jeu. Avec 2 lumieres, la plus proche du pointeur se deplace.</p>
+      tailles relatives du jeu. Avec 2 lumieres, la plus proche du pointeur se deplace.
+      Sprite retourne : l'image est mise en miroir et la composante horizontale des normales
+      inversee, sinon la lumiere eclairerait le mauvais cote.</p>
   </aside>
 </main>
 <script>
@@ -149,6 +166,7 @@ uniform vec2 uL1, uL2;     // lumieres en px ecran
 uniform vec3 uC1, uC2;     // couleurs
 uniform float uN;          // nombre de lumieres
 uniform float uRayonDisque;
+uniform float uFlip;       // 1 = sprite retourne : image en miroir ET normal.x inverse (correction du flipX)
 
 float palier(float v) {
   if (uPaliers < 1.5) return v;
@@ -179,17 +197,21 @@ void main() {
   }
   vec2 t = floor((fc - uOrigineEcr) / uEchelle);
   if (t.x < 0.0 || t.y < 0.0 || t.x >= uTaille.x || t.y >= uTaille.y) discard;
-  vec2 uv = (t + 0.5) / uTaille;
+  vec2 ts = t;
+  if (uFlip > 0.5) ts.x = uTaille.x - 1.0 - t.x;
+  vec2 uv = (ts + 0.5) / uTaille;
   vec4 base = texture2D(uNeutre, uv);
   vec4 o = texture2D(uOrigine, uv);
   float a = uMode > 0.5 && uMode < 1.5 ? o.a : base.a;
   if (a < 0.5) discard;
   vec3 c;
-  if (uMode > 2.5) c = texture2D(uNormales, uv).rgb;
+  if (uMode > 2.5) { c = texture2D(uNormales, uv).rgb; if (uFlip > 0.5) c.r = 1.0 - c.r; }
   else if (uMode > 1.5) c = texture2D(uSections, uv).rgb;
   else if (uMode > 0.5) c = o.rgb;
   else {
-    vec3 n = normalize(texture2D(uNormales, uv).rgb * 2.0 - 1.0);
+    vec3 n = texture2D(uNormales, uv).rgb * 2.0 - 1.0;
+    if (uFlip > 0.5) n.x = -n.x;   // le sprite regarde de l'autre cote : sa face gauche devient la droite
+    n = normalize(n);
     vec2 tc = t + 0.5;
     vec3 l = vec3(uAmbiante) + uC1 * uIntensite * recu(n, tc, (uL1 - uOrigineEcr) / uEchelle);
     if (uN > 1.5) l += uC2 * uIntensite * recu(n, tc, (uL2 - uOrigineEcr) / uEchelle);
@@ -218,14 +240,18 @@ void main() {
   const U = {};
   for (const n of ["uRect", "uNeutre", "uNormales", "uOrigine", "uSections", "uTaille", "uCanvas",
     "uOrigineEcr", "uEchelle", "uMode", "uPaliers", "uAmbiante", "uHauteur", "uPortee", "uIntensite",
-    "uL1", "uL2", "uC1", "uC2", "uN", "uRayonDisque"]) U[n] = gl.getUniformLocation(prog, n);
+    "uL1", "uL2", "uC1", "uC2", "uN", "uRayonDisque", "uFlip"]) U[n] = gl.getUniformLocation(prog, n);
   gl.uniform1i(U.uNeutre, 0); gl.uniform1i(U.uNormales, 1);
   gl.uniform1i(U.uOrigine, 2); gl.uniform1i(U.uSections, 3);
 
   // ---- textures de chaque asset
   const NOMS = ["neutre", "normales", "origine", "sections"];
-  const assets = D.assets.map((a) => ({ nom: a.nom, images: a.images, tex: {}, taille: [1, 1] }));
-  let aCharger = assets.length * NOMS.length;
+  // un asset = une image fixe ({ images }) ou une animation ({ frames: [{ images }], fps, vitesse, regarde })
+  const assets = D.assets.map((a) => ({
+    nom: a.nom, fps: a.fps || 0, vitesse: a.vitesse || 0, regarde: a.regarde || "droite",
+    frames: (a.frames || [{ images: a.images }]).map((f) => ({ images: f.images, tex: {}, taille: [1, 1] })),
+  }));
+  let aCharger = assets.reduce((s, a) => s + a.frames.length, 0) * NOMS.length;
   function texture(img) {
     const t = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, t);
@@ -239,14 +265,19 @@ void main() {
     return t;
   }
   for (const a of assets) {
-    for (const nom of NOMS) {
-      const img = new Image();
-      img.onload = () => {
-        if (nom === "neutre") a.taille = [img.width, img.height];
-        a.tex[nom] = texture(img);
-        if (--aCharger === 0) dessiner();
-      };
-      img.src = a.images[nom] || a.images.origine;
+    for (const f of a.frames) {
+      for (const nom of NOMS) {
+        const img = new Image();
+        img.onload = () => {
+          if (nom === "neutre") f.taille = [img.width, img.height];
+          f.tex[nom] = texture(img);
+          if (--aCharger === 0) {
+            for (const b of assets) b.taille = b.frames[0].taille;
+            majAnim(); dessiner(); demarrerBoucle();
+          }
+        };
+        img.src = f.images[nom] || f.images.origine;
+      }
     }
   }
 
@@ -255,6 +286,49 @@ void main() {
   // lumieres en fraction de la boite affichee (0,0 = coin haut-gauche, 1,1 = coin bas-droit)
   const etat = { mode: 0, courant: 0, tous: false, lumieres: [[-0.25, 0.3], [1.2, 0.35]] };
   let echelle = D.echelle || 6;
+  // animation : frame courante (flottante), lecture, marche aller-retour, sens
+  const anim = { joue: true, f: 0, vitesse: 1, marcher: false, sens: false, x: 0, dir: 1, dernier: 0 };
+  const animee = () => assets.some((a) => a.frames.length > 1);
+  const idx = (n) => ((Math.floor(anim.f) % n) + n) % n;
+  function majAnim() {
+    $("bloc-anim").hidden = !animee();
+    const a = assets[etat.courant];
+    const n = a.frames.length;
+    $("num-frame").textContent = n > 1 ? "frame " + (idx(n) + 1) + " / " + n
+      + (a.fps ? " - " + Math.round(a.fps * anim.vitesse) + " i/s" : "") : "";
+    $("lecture").textContent = anim.joue ? "Pause" : "Lecture";
+  }
+  function pas(d) {
+    anim.joue = false;
+    anim.f = Math.floor(anim.f) + d + 1000 * 12;  // reste positif
+    majAnim(); dessiner();
+  }
+  $("prec").onclick = () => pas(-1);
+  $("suiv").onclick = () => pas(1);
+  $("lecture").onclick = () => { anim.joue = !anim.joue; majAnim(); demarrerBoucle(); };
+  $("vitesse").addEventListener("input", () => {
+    anim.vitesse = +$("vitesse").value; $("o-vitesse").textContent = "x" + anim.vitesse; majAnim();
+  });
+  $("o-vitesse").textContent = "x1";
+  $("marcher").onchange = () => { anim.marcher = $("marcher").checked; if (!anim.marcher) anim.x = 0; demarrerBoucle(); dessiner(); };
+  $("sens").onchange = () => { anim.sens = $("sens").checked; dessiner(); };
+  let boucle = false;
+  function demarrerBoucle() {
+    if (boucle || !animee() || !(anim.joue || anim.marcher)) return;
+    boucle = true;
+    anim.dernier = performance.now();
+    const tick = (ts) => {
+      const dt = Math.max(0, Math.min(0.1, (ts - anim.dernier) / 1000));
+      anim.dernier = ts;
+      const a = assets[etat.courant];
+      if (anim.joue) anim.f += dt * (a.fps || 12) * anim.vitesse;
+      if (anim.marcher) anim.x += anim.dir * (a.vitesse || 120) * anim.vitesse * dt;  // px du jeu par seconde
+      majAnim();
+      rendu();
+      if (anim.joue || anim.marcher) requestAnimationFrame(tick); else boucle = false;
+    };
+    requestAnimationFrame(tick);
+  }
 
   if (assets.length > 1) {
     $("bloc-assets").hidden = false;
@@ -263,7 +337,7 @@ void main() {
       const o = document.createElement("option");
       o.value = i; o.textContent = a.nom; $("asset").appendChild(o);
     });
-    $("asset").onchange = () => { etat.courant = +$("asset").value; dessiner(); };
+    $("asset").onchange = () => { etat.courant = +$("asset").value; majAnim(); dessiner(); };
     $("tous").onchange = () => { etat.tous = $("tous").checked; $("asset").disabled = etat.tous; dessiner(); };
   }
 
@@ -278,6 +352,12 @@ void main() {
   }
   const ha = /a=(\d+)/.exec(location.hash);
   if (ha && assets[+ha[1]]) { etat.courant = +ha[1]; $("asset").value = ha[1]; }
+  if (/marche/.test(location.hash)) { anim.marcher = true; $("marcher").checked = true; }
+  if (/sens/.test(location.hash)) { anim.sens = true; $("sens").checked = true; }
+  const hf = /f=(\d+)/.exec(location.hash);
+  if (hf) { anim.joue = false; anim.f = +hf[1]; }
+  const hx = /x=(-?[\d.]+)/.exec(location.hash);
+  if (hx) anim.x = +hx[1];
   if (/tous/.test(location.hash) && assets.length > 1) {
     etat.tous = true; $("tous").checked = true; $("asset").disabled = true;
   }
@@ -374,14 +454,28 @@ void main() {
     gl.uniform1f(U.uN, n2);
     gl.uniform1f(U.uRayonDisque, 6 * dpr);
     gl.uniform1f(U.uMode, etat.mode);
+    // marche : aller-retour dans la scene (la lumiere, elle, reste fixe)
+    let dx = 0;
+    if (anim.marcher && !etat.tous) {
+      const amp = Math.max(0, (W / s - lw) / 2 - 4);
+      if (anim.x > amp) { anim.x = amp; anim.dir = -1; }
+      if (anim.x < -amp) { anim.x = -amp; anim.dir = 1; }
+      dx = Math.round(anim.x);
+    }
     for (const p of places) {
-      NOMS.forEach((nom, i) => { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, p.a.tex[nom]); });
-      const x = ox + p.x * s, y = oy + p.y * s;
+      const fr = p.a.frames[idx(p.a.frames.length)];
+      NOMS.forEach((nom, i) => { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, fr.tex[nom]); });
+      // sens : sprite en miroir ET normal.x inverse dans le shader (ce que flipX seul ne fait pas)
+      const vers = anim.marcher && !etat.tous ? (anim.dir > 0 ? "droite" : "gauche") : null;
+      const flip = vers ? vers !== p.a.regarde : anim.sens;
+      gl.uniform1f(U.uFlip, flip ? 1 : 0);
+      const x = ox + (p.x + dx) * s, y = oy + p.y * s;
       gl.uniform2f(U.uTaille, p.a.taille[0], p.a.taille[1]);
       gl.uniform2f(U.uOrigineEcr, x, y);
       gl.uniform4f(U.uRect, x, y, p.a.taille[0] * s, p.a.taille[1] * s);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
+    gl.uniform1f(U.uFlip, 0);
     gl.uniform1f(U.uMode, 9);
     gl.uniform4f(U.uRect, 0, 0, W, H);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
