@@ -210,13 +210,12 @@ sans branche sur z ni sur « lampe cachee » ; seuls les paliers font des marche
     wb    = smoothstep(+15, -15, z)                  // poids « derriere », progressif autour de z = 0
     ne    = normalize(mix(n_section, n_lissee_5x5, wb))
     L     = direction 3D vraie vers la lampe (z negatif compris)
-    diff  = max((ne . L + w) / (1 + w), 0) x att3D,  w = 0,5 wb      // « wrap » doux
-    occ   = smoothstep(-8, 0, distance signee lampe/silhouette)       // v14 ; plus utilise par cj (v15)
-            (dedans : profondeur ; dehors : -distance ; texture de geometrie, marge 10 px)
-    cj    = 0,533 contre x wb x |n_section.xy| x max(cb, 0) x att3D       // v15
-            cb = (n_section.z (n2 . d.xy) + |n_section.xy| |z|) / dist      // n2 : direction 2D lissee
-            = le cosinus de la lampe de face, sur la normale de la section BASCULEE (angle au
-              spectateur theta -> 90 - theta) et la lampe en miroir devant le plan (|z|)
+    ex, v = carte contre-jour <nom>.cj.png (v16, voir ci-dessous) : exposition, direction du bord
+    diff  = max((ne . L + w) / (1 + w), 0) x att3D x mix(1, ex, wb),  w = 0,5 wb   // « wrap » doux
+    cj    = 0,6 contre x wb x ex x max(cb, 0) x att3D                               // v16
+            cb = (0,37 (v . d.xy) + 0,93 |z|) / dist
+            = le cosinus de la lampe de face sur le bord expose vu comme une rasante BASCULEE
+              (angle au spectateur theta -> 90 - theta) et la lampe en miroir devant le plan (|z|)
     contour sombre (luminance de base < 0,16) : pas de cj, e = min(diff, 1 palier)
     lumiere = ambiance + couleur x intensite x palier(min(diff + cj, 1))   // un plafond, un palier
     Tout est MULTIPLIE par la couleur de base du neutre : aucune part additive de la lampe.
@@ -262,9 +261,37 @@ v10 -> v11 : Agarica, balayage de profondeur lampe a gauche 0,031 -> 0,001, lamp
 silhouette a z = -20 0,109 -> 0,021 ; crapaud 0,020 -> 0,002 et 0,054 -> 0,010. La page garde
 temporairement une case « Ancienne version (v10) ».
 
+v16 (« quand la lumiere est derriere, elle ne devrait pas eclairer le milieu de l'asset » ; puis
+« creer une autre carte de sections pour les lumieres derriere ») : en v15, crapaud lampe derriere,
+19-20 % des pixels des sections qui ne touchent jamais le bord s'allumaient (gorge le long du trait
+gorge / corps, interieur de cuisse, plis) ; a -49 lampe au centre, 422 des 434 pixels fautifs
+s'allumaient par le seul terme |n.xy| |z| (tout plan incline, interieur compris) ; Agarica et loup
+33-36 %. Les normales de face ne savent pas ce qui est expose par l'arriere : le contre-jour lit
+desormais une CARTE DEDIEE, generee par sections.py (carte_cj) et retouchable a la main.
+
+    <nom>.cj.png (RGBA, taille du sprite)
+      R, G : direction 2D du bord expose (x droite, y HAUT), v = c / 255 x 2 - 1 (128 = aucune)
+      B    : exposition arriere 0-255
+      A    : 255 sur le sprite, 0 ailleurs
+    <nom>.cj-apercu.png : teinte = direction (0 deg rouge = droite, 90 = haut, sens trigo),
+      luminosite = exposition ; noir ou gris = rien. Retouche a la main puis
+      sections.py <nom>.png --depuis-cj <nom>.cj-apercu.png -> reecrit <nom>.cj.png.
+
+Generation : sources = pixels qui touchent l'exterieur (profondeur 1 de geometrie()) ; distance
+geodesique (8 voisins) SEULEMENT entre pixels de la meme section ; traits sombres (luminance < 0,16
+a plus de 2 px du vide) = murs ; exposition = (1 - smoothstep(0, L, d)) x |n.xy| / 0,93 de la section,
+L = min(profondeur max de la zone + 1, 12 px) (chaque zone s'estompe sur sa propre largeur) ; une
+section qui ne touche jamais le bord reste a 0, sauf une frange d'adoucissement de 2 px (chaque pixel
+recoit au moins la moitie de son voisin le plus expose, 2 passes, jamais a travers un trait) ;
+direction = normale exterieure de la silhouette au pixel source le plus proche, lissee 5 x 5 dans la
+zone. Page de test : case « Carte contre-jour » pour la voir. Si la carte manque, viewer.py la calcule.
+Batterie v16 (12 tests, 5 sprites) : tout OK ; « milieu sombre » (lampe derriere au centre, a gauche,
+en haut ; z = -20 et -49 ; pixels de sections non reliees au bord, hors frange de 2 px) 19-36 % -> 0 %.
+
 Dans Phaser (pipeline personnalise) : meme fonction par lampe ; uniforms par lampe : position,
-profondeur (uLightZ), occultation precalculee cote JS (lecture de la texture de geometrie a la
-position de la lampe) ; textures : normales + geometrie. Pas de `if` sur z dans le shader.
+profondeur (uLightZ) ; textures : normales + carte contre-jour (.cj.png, a generer par le portage de
+sections.js ; a declarer dans le manifeste a cote des normales). La texture de geometrie ne sert plus
+au contre-jour (occultation inutilisee depuis v15). Pas de `if` sur z dans le shader.
 
 Contour : aucun traitement special du bord dans le shader. Dans sections.py, chaque pixel qui
 touche le vide HERITE de la section des pixels interieurs voisins (heriter_bord) : le contour fait

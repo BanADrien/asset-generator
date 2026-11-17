@@ -2,8 +2,8 @@
 
 Usage : python -I viewer.py SPRITE.png|ANIM.anim.json [SPRITE2.png ...] [--regarde gauche] [--noms "crapaud,loup"] [--titre T]
                             [--echelle 6] [--out CHEMIN.html]
-Lit a cote de chaque sprite : <nom>.neutre.png, <nom>.normales.png, <nom>.sections.png (sorties de
-sections.py). Un seul sprite -> <nom>-lumiere.html a cote de lui ; plusieurs -> une seule page
+Lit a cote de chaque sprite : <nom>.neutre.png, <nom>.normales.png, <nom>.sections.png et
+<nom>.cj.png (carte contre-jour, calculee a la volee si absente) (sorties de sections.py). Un seul sprite -> <nom>-lumiere.html a cote de lui ; plusieurs -> une seule page
 avec un selecteur d'asset et une case « tous cote a cote » (meme lumiere, meme echelle, tailles
 relatives du jeu), ecrite a --out (defaut : assets-lumiere.html a cote du 1er sprite).
 Animation (.anim.json de sections.py --animation) : lecture en boucle a la vitesse du jeu,
@@ -39,6 +39,15 @@ def images(sprite):
     buf = io.BytesIO()
     sections.geometrie(Image.open(sprite).convert("RGBA")).save(buf, "PNG")
     out["geo"] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    # carte contre-jour (v16) : <nom>.cj.png de sections.py (retouchable), sinon calculee ici
+    cj = f"{stem}.cj.png"
+    if os.path.exists(cj):
+        out["cj"] = data_uri(cj)
+    else:
+        buf = io.BytesIO()
+        sections.carte_cj(Image.open(sprite).convert("RGBA"), Image.open(imgs["normales"]),
+                          Image.open(imgs["neutre"])).save(buf, "PNG")
+        out["cj"] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
     return out
 
 

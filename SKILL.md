@@ -86,7 +86,9 @@ existant a eclairer. Pas de Codex, pas de juges, pas de boucle : on part du spri
 Detail, table des couleurs et integration Phaser : `references/lumiere.md`.
 1. `& $py -I scripts/sections.py W/<nom>.png --apercu` -> `<nom>.neutre.png` (aplats par
    matiere, contour et oeil gardes), `<nom>.sections.png` (zones en couleurs franches, 1 couleur
-   = 1 direction), `<nom>.normales.png` (R = x, G = y vers le HAUT, B = z) + planche d'apercu.
+   = 1 direction), `<nom>.normales.png` (R = x, G = y vers le HAUT, B = z), `<nom>.cj.png` (carte
+   CONTRE-JOUR : R,G direction du bord expose, B exposition arriere ; apercu retouchable
+   `<nom>.cj-apercu.png`, relu par `--depuis-cj`) + planche d'apercu.
    Regarder l'apercu (zones = parties de l'animal ? lumiere a gauche = cote gauche eclaire ?).
    Neutre rate : `--rampes` / `--garder` ; en dernier recours UNE generation Codex (voir
    `lumiere.md`), gardee seulement si la silhouette est identique au pixel pres.

@@ -181,3 +181,9 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   plutot qu'empiler puissances, seuils et rayons ad hoc ; le degrade entre sections vient alors
   tout seul. Mesurer la reference avant de fixer un objectif : +49 a deja des sauts de 3 paliers
   entre sections voisines, « sans saut brutal » est une impression d'etagement, pas un saut max 1.
+- 2026-11-17 - contre-jour v16 « la lumiere derriere ne devrait pas eclairer le milieu de l'asset »,
+  puis « peut-etre qu'il faudrait une autre carte de sections pour les lumieres derriere » : les
+  normales de face ne disent pas ce qui est expose par l'arriere ; toutes les regles qui le devinent
+  (bande, taches, bascule, milieu eclaire) echouent quelque part. Une information qui manque se met
+  dans une CARTE dediee, generee automatiquement et retouchable (.cj.png + apercu colore), pas dans
+  une regle de plus dans le shader. Mesurer aussi « ce qui ne doit PAS s'allumer » (test 12).

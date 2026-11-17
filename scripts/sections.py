@@ -18,6 +18,9 @@ tout est quantifie sur 17 sections (face, 8 inclinees, 8 rasantes) puis nettoye 
 Usage :
   python -I sections.py SPRITE.png [--apercu] [--gauche] [--garder hex,hex] [--rampes "hex,hex;hex,hex"]
   python -I sections.py SPRITE.png --depuis-sections SPRITE.sections.png   (recalcule les normales)
+  python -I sections.py SPRITE.png --depuis-cj SPRITE.cj-apercu.png        (carte contre-jour retouchee)
+  Toujours aussi : <nom>.cj.png (carte CONTRE-JOUR : R,G direction du bord expose, B exposition
+  arriere) et <nom>.cj-apercu.png (teinte = direction, luminosite = exposition), voir carte_cj().
   --apercu : <nom>.apercu.png (origine | neutre | sections | eclaire gauche | eclaire droite, x4)
   --gauche : <nom>.neutre-gauche.png + <nom>.normales-gauche.png (sprite retourne pour regarder a
              gauche, rouge des normales inverse ; flipX de Phaser 3.80 ne corrige pas les normales)
@@ -848,6 +851,183 @@ def geometrie(im, pad=GEO_PAD, trou_min=GEO_TROU_MIN):
     return out
 
 
+# ---------------------------------------------------------------- carte contre-jour <nom>.cj.png (v16)
+# Les normales de face ne savent pas ce qui est expose par l'arriere : une carte DEDIEE le dit.
+# Format (RGBA, taille du sprite) :
+#   R, G = direction 2D du bord expose, d'ou la lumiere de derriere peut arriver (x droite, y HAUT,
+#          encodage des normales : v = (c / 255) x 2 - 1 ; 128 = pas de direction)
+#   B    = exposition arriere 0-255 (0 = jamais atteint par une lampe derriere)
+#   A    = 255 sur le sprite, 0 ailleurs
+# Apercu retouchable <nom>.cj-apercu.png : teinte = direction (0 deg = droite, 90 = haut, sens
+# trigonometrique, comme la roue des sections), luminosite = exposition (noir = rien) ;
+# --depuis-cj APERCU.png le relit (HSV inverse) et reecrit <nom>.cj.png.
+CJ_PORTEE = 12.0   # px : longueur maximale de la decroissance, mesuree DANS la section
+CJ_SOMBRE = 0.16   # luminance du neutre sous laquelle un pixel est un trait sombre (comme le shader)
+CJ_CONTOUR = 2     # un trait sombre a <= 2 px du vide est le contour exterieur (laisse passer)
+CJ_FRANGE = 2      # adoucissement : 2 px dans la section voisine (x 0,5 par px), jamais a travers un trait
+CJ_LISSE = 2       # direction lissee sur (2 x 2 + 1)^2 pixels de la meme zone
+
+
+def carte_cj(im, normales, neutre, pad=GEO_PAD):
+    """Carte contre-jour (format ci-dessus), calculee depuis la silhouette, les sections et les traits.
+    Exposition : sources = pixels qui touchent l'exterieur (profondeur 1 de geometrie()) ;
+    distance geodesique d (8 voisins, 1 / 1,41) SEULEMENT entre pixels de la meme section ; les
+    traits sombres interieurs sont des murs. expo = (1 - smoothstep(0, L, d)) x pente, avec
+    L = min(profondeur max de la zone + 1, 12 px) (chaque zone s'estompe sur sa propre largeur : pas
+    d'anneau d'epaisseur constante) et pente = |n.xy| / 0,93 de la section (rasante 1, inclinee 0,69,
+    face 0 : meme etagement que la lampe de face a +49). Une section qui ne touche jamais l'exterieur
+    reste a 0, sauf une frange d'adoucissement de 2 px (x 0,5 par px, face comprise) le long d'une
+    zone exposee : le plan au maximum n'a jamais l'ambiance pour voisin direct.
+    Direction : normale exterieure de la silhouette au pixel source le plus proche, heritee le long de
+    la propagation puis lissee sur 5 x 5 pixels de la meme zone."""
+    import heapq
+    w, h = im.size
+    g = geometrie(im, pad).load()
+    nm, ne = normales.convert("RGBA").load(), neutre.convert("RGBA").load()
+    opq = [(x, y) for y in range(h) for x in range(w) if nm[x, y][3] >= 128]
+    S = set(opq)
+    D = {p: g[p[0] + pad, p[1] + pad][0] // 16 for p in opq}
+    sec = {p: nm[p][:3] for p in opq}
+    pente = {}
+    for p in opq:
+        v = math.hypot(nm[p][0] / 255 * 2 - 1, nm[p][1] / 255 * 2 - 1) / 0.93
+        pente[p] = 0.0 if v < 0.05 else min(1.0, v)
+    lum = {p: (0.3 * ne[p][0] + 0.59 * ne[p][1] + 0.11 * ne[p][2]) / 255 for p in opq}
+    passe = {p: lum[p] >= CJ_SOMBRE or D[p] <= CJ_CONTOUR for p in opq}
+    # normale exterieure aux sources (somme des directions vers le vide ; y vers le HAUT)
+    src = {}
+    for p in opq:
+        if D[p] == 1 and passe[p]:
+            vx = vy = 0.0
+            for dx, dy in N8:
+                if (p[0] + dx, p[1] + dy) not in S:
+                    k = 0.7071 if dx and dy else 1.0
+                    vx += dx * k
+                    vy -= dy * k
+            m = math.hypot(vx, vy)
+            src[p] = (vx / m, vy / m) if m > 1e-6 else (0.0, 0.0)
+    dist, vdir = {}, {}
+    tas = [(0.0, p, p) for p in src]
+    heapq.heapify(tas)
+    while tas:
+        d, p, s0 = heapq.heappop(tas)
+        if p in dist:
+            continue
+        dist[p], vdir[p] = d, src[s0]
+        for dx, dy in N8:
+            q = (p[0] + dx, p[1] + dy)
+            if q in S and q not in dist and passe[q] and sec[q] == sec[p]:
+                heapq.heappush(tas, (d + (1.4142 if dx and dy else 1.0), q, s0))
+    zone, prof = {}, []
+    for p in dist:
+        if p in zone:
+            continue
+        k, pile, dm = len(prof), [p], 0.0
+        zone[p] = k
+        while pile:
+            c = pile.pop()
+            dm = max(dm, dist[c])
+            for dx, dy in N8:
+                q = (c[0] + dx, c[1] + dy)
+                if q in dist and q not in zone and sec[q] == sec[c]:
+                    zone[q] = k
+                    pile.append(q)
+        prof.append(dm)
+    ex, dl = {}, {}
+    for p, d in dist.items():
+        L = min(prof[zone[p]] + 1.0, CJ_PORTEE)
+        t = min(1.0, d / L)
+        ex[p] = (1.0 - t * t * (3 - 2 * t)) * pente[p]
+        ax = ay = 0.0
+        for a in range(-CJ_LISSE, CJ_LISSE + 1):
+            for b in range(-CJ_LISSE, CJ_LISSE + 1):
+                q = (p[0] + a, p[1] + b)
+                if zone.get(q) == zone[p]:
+                    ax += vdir[q][0]
+                    ay += vdir[q][1]
+        m = math.hypot(ax, ay)
+        dl[p] = (ax / m, ay / m) if m > 1e-6 else vdir[p]
+    # frange d'adoucissement : chaque pixel recoit au moins la moitie de son voisin le plus expose
+    # (2 passes : x 0,5 puis x 0,25), y compris dans une autre section ou une zone exposee ailleurs,
+    # jamais a travers un trait
+    for _ in range(CJ_FRANGE):
+        ajout = {}
+        for p in opq:
+            if not passe[p]:
+                continue
+            best, bd = 0.0, (0.0, 0.0)
+            for dx, dy in N8:
+                q = (p[0] + dx, p[1] + dy)
+                if q in ex and passe[q] and ex[q] > best:
+                    best, bd = ex[q], dl[q]
+            if 0.5 * best > ex.get(p, 0.0):
+                ajout[p] = (0.5 * best, bd if p not in dl else dl[p])
+        for p, (v, d_) in ajout.items():
+            ex[p], dl[p] = v, d_
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    px = out.load()
+    for p in opq:
+        e = ex.get(p, 0.0)
+        vx, vy = dl[p] if e > 0 else (0.0, 0.0)
+        px[p] = (round((vx * 0.5 + 0.5) * 255), round((vy * 0.5 + 0.5) * 255), round(255 * e), 255)
+    return out
+
+
+def cj_apercu(cj):
+    """Apercu colore retouchable : teinte = direction, luminosite = exposition, fond transparent."""
+    import colorsys
+    w, h = cj.size
+    s = cj.convert("RGBA").load()
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    o = out.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = s[x, y]
+            if a < 128:
+                continue
+            ang = math.degrees(math.atan2(g / 255 * 2 - 1, r / 255 * 2 - 1)) % 360
+            rr, gg, bb = colorsys.hsv_to_rgb(ang / 360, 1.0, b / 255)
+            o[x, y] = (round(rr * 255), round(gg * 255), round(bb * 255), 255)
+    return out
+
+
+def cj_depuis_apercu(ap):
+    """Inverse de cj_apercu : apercu retouche a la main -> carte cj (gris ou noir = pas d'exposition)."""
+    import colorsys
+    w, h = ap.size
+    s = ap.convert("RGBA").load()
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    o = out.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = s[x, y]
+            if a < 128:
+                continue
+            hh, ss_, vv = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            if ss_ < 0.2:
+                o[x, y] = (128, 128, 0, 255)
+                continue
+            ang = math.radians(hh * 360)
+            o[x, y] = (round((math.cos(ang) * 0.5 + 0.5) * 255), round((math.sin(ang) * 0.5 + 0.5) * 255),
+                       round(255 * vv), 255)
+    return out
+
+
+def ecrire_cj(stem, depuis=""):
+    """<stem>.cj.png + <stem>.cj-apercu.png, depuis <stem>.png / .normales.png / .neutre.png, ou depuis
+    un apercu retouche (depuis = chemin de l'apercu)."""
+    if depuis:
+        cj = cj_depuis_apercu(Image.open(depuis))
+    else:
+        im = Image.open(stem + ".png").convert("RGBA")
+        neu = stem + ".neutre.png"
+        cj = carte_cj(im, Image.open(stem + ".normales.png"), Image.open(neu) if os.path.exists(neu) else im)
+    cj.save(stem + ".cj.png")
+    if not depuis:
+        cj_apercu(cj).save(stem + ".cj-apercu.png")
+    return [stem + ".cj.png"] + ([] if depuis else [stem + ".cj-apercu.png"])
+
+
 # ---------------------------------------------------------------- facteur pixel-fixer
 def phase_grille(im, f, pas=0.5):
     """Calage de la grille de f px (pixel-fixer) : decalage (px, py) pour lequel chaque case est
@@ -1016,6 +1196,7 @@ def animation(paths, stem, echelle=0.0, ncol=32, fps=12, vitesse=0, garder=(), r
         fs = f"{stem}_{i}"
         c.save(fs + ".png")
         save_maps(c, set(fc[i]), fn[i], fc[i], fs)
+        ecrire_cj(fs)
         names.append(os.path.basename(fs) + ".png")
     man = {"nom": os.path.basename(stem), "fps": fps, "vitesse": vitesse, "frames": names}
     with open(stem + ".anim.json", "w", encoding="utf-8") as f:
@@ -1052,6 +1233,7 @@ def main():
     ap.add_argument("--fps", type=int, default=12, help="animation : frameRate du jeu (anims.create)")
     ap.add_argument("--vitesse", type=int, default=0, help="animation : vitesse de deplacement en jeu (px/s)")
     ap.add_argument("--depuis-sections", default="", help="sections.png retouche -> recalcule les normales")
+    ap.add_argument("--depuis-cj", default="", help="cj-apercu.png retouche -> reecrit la carte contre-jour .cj.png")
     ap.add_argument("--garder", default="", help="couleurs hex a garder telles quelles (details), ex. dea019,fdfdfd")
     ap.add_argument("--rampes", default="", help='forcer des rampes : "hex,hex;hex,hex"')
     ap.add_argument("--apercu", action="store_true")
@@ -1095,13 +1277,21 @@ def main():
         im = peint_vers_jeu(im, a.echelle_jeu, a.couleurs)
         im.save(stem + ".png")
         print(stem + ".png", "(%d x %d, %d couleurs)" % (im.width, im.height, len(im.getcolors(1 << 16))))
+    if a.depuis_cj:
+        for p in ecrire_cj(stem, a.depuis_cj):
+            print(p)
+        return
     if a.depuis_sections:
         p, used = normals_from_sections(a.depuis_sections, stem)
         print(p)
         print("sections lues :", ", ".join(sorted(used)))
+        for p in ecrire_cj(stem):
+            print(p)
     else:
         opq, neutral, codes, info = analyse(im, garder, rampes, peint=a.echelle_jeu > 0)
         for p in save_maps(im, opq, neutral, codes, stem).values():
+            print(p)
+        for p in ecrire_cj(stem):
             print(p)
         print("rampes (couleur neutre <- couleurs) :")
         for b, r in info["ramps"]:
