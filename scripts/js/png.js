@@ -1,7 +1,7 @@
-// COPIE de tools/lumiere/png.js, depot du jeu agarica, branche feature/eclairage-sections, commit aa58770
-// (grands sprites : coeur 293e879, page 8191fa0 ; coeur.js sorti de tools/sections.js en 5323430).
-// Ne pas la modifier ici : la recopier. Meme calcul que scripts/sections.py, cartes identiques au
-// pixel pres (scripts/js/test-page.js).
+// COPIE de tools/lumiere/png.js, depot du jeu agarica, branche feature/eclairage-sections, commit e5e8864
+// (sectionnement fin des grands sprites : c9ddf62 ; echelle s : 293e879 / 8191fa0 ; coeur.js sorti de
+// tools/sections.js en 5323430). Ne pas la modifier ici : la recopier. Meme calcul que
+// scripts/sections.py, cartes identiques au pixel pres (scripts/js/test-page.js).
 'use strict';
 /*
  * Lecture / écriture PNG sans dépendance (Node seul : zlib intégré), pour tools/sections.js et

@@ -301,6 +301,17 @@ ecart a sa moyenne locale sur +-2 s px, ramene a la couleur de rampe la plus pro
 claires x 188 / leur max). Page : normale lissee echantillonnee tous les round(s) px (uPasLisse),
 portee jusqu'a max(800, 3 x diagonale), profondeur +-max(60, diagonale / 6). sections.py ecrit
 « s » dans le .anim.json quand s > 1 ; viewer.py le passe a la page.
+Sectionnement fin des grands sprites (s > 1 seulement ; coeur.js du jeu, commit c9ddf62) : table
+FINE = face (code 0) + 3 bagues (25, 50, 70 deg) x 12 azimuts, codes 17 a 52 (seuils de |n.xy| :
+face < 0,22 < 25 deg < 0,50 < 50 deg < 0,85 < 70 deg ; couleurs : teinte = azimut, saturation /
+valeur 0,30 / 1,0 ; 0,65 / 0,92 ; 0,95 / 0,58) ; --depuis-sections relit la table fine si s > 1.
+Dome sur toute la partie : flou de rayon max(1,2 s ; 0,5 x profondeur reelle de la partie, BFS
+8 voisins, sans plafond). Masses : relief = distance chanfrein (bord ou trait) + 2 s x ombrage
+normalise par rampe, flou de 3 boites de rayon round(2 s) ; partage des eaux du haut vers le bas,
+frontieres la ou deux bassins se rencontrent (fusion si profondeur < max(s ; 15 % du sommet) ou
+aire < 80 s^2), ajoutees aux barrieres. Traits epaissis en disque de rayon round(s) ; bordure rendue
+aux parties en round(4 s) passes. Carte contre-jour : propagation dans la meme DIRECTION (12
+azimuts, toutes bagues confondues) au lieu de la meme section.
 
 Dans Phaser (pipeline personnalise) : meme fonction par lampe ; uniforms par lampe : position,
 profondeur (uLightZ) ; textures : normales + carte contre-jour (.cj.png, a generer par le portage de

@@ -195,3 +195,10 @@ Format : date - sujet - ce qui a fait monter (+) ou baisser (-) la note - regle 
   d'un grand sprite detaille (meches, nuances) : n'y retirer que l'ombrage a grande echelle et
   garder les matieres claires sous 188 / 255 (paliers distincts au lieu de saturer au blanc).
   Limites restantes sur Kainati : escaliers sous lampe de cote, contre-jour faible lampe au centre.
+- 2026-11-17 - grands sprites peints (Kainati) : 17 sections ne donnaient qu'une bague entre la face
+  et le bord, et le bombe limite a 3 px laissait l'interieur des parties a plat. Pour s > 1 : domes
+  sur TOUTE la partie (rayon = moitie de sa profondeur reelle) et table fine (face + 3 bagues x 12
+  azimuts), traits epaissis de round(s), masses par partage des eaux (epaisseur + ombrage a grande
+  echelle). Kainati : face 26 % -> 12 %, 17 -> 37 directions. Limites : masses anatomiques peu
+  trouvees sur une fourrure sans traits ; clignotement d'animation plus eleve (25 % apres lissage).
+  Piste ecartee pour l'instant par l'utilisateur : carte des masses peinte a la main.

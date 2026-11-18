@@ -65,6 +65,20 @@ for nom, ang in DIRS:
 for nom, ang in DIRS:
     SECTIONS.append((nom + " rasant", _hsv(ang, 0.95, 0.62), ang, TILT_RAS))
 
+# Grands sprites (s > 1) : 17 sections ne donnent qu'une bague intermediaire sur un sprite de 300 px.
+# Table FINE : la face (code 0) + 3 bagues (25, 50, 70 deg) x 12 azimuts (tous les 30 deg), codes 17
+# a 52. Meme code couleur : teinte = direction, de pale (peu incline) a fonce (rasant).
+AZ_FIN = 12
+TILTS_FIN = ((25.0, "peu incline", 0.30, 1.0), (50.0, "incline", 0.65, 0.92), (70.0, "rasant", 0.95, 0.58))
+NOMS_AZ = {0: "droite", 90: "haut", 180: "gauche", 270: "bas"}
+FIN0 = len(SECTIONS)
+for _tilt, _nomT, _sat, _val in TILTS_FIN:
+    for _k in range(AZ_FIN):
+        _ang = _k * 360 // AZ_FIN
+        SECTIONS.append(("%s %s (fin)" % (NOMS_AZ.get(_ang) or "%d deg" % _ang, _nomT), _hsv(_ang, _sat, _val), _ang, _tilt))
+CODES_17 = list(range(FIN0))
+CODES_FIN = [0] + list(range(FIN0, len(SECTIONS)))
+
 
 def section_normal(code):
     _, _, ang, tilt = SECTIONS[code]
@@ -78,17 +92,23 @@ def encode_normal(n):
     return tuple(max(0, min(255, round((c * 0.5 + 0.5) * 255))) for c in n)
 
 
-def quantize(nx, ny):
-    """Vecteur dans le plan (y haut) -> code de section."""
+def quantize(nx, ny, fin=False):
+    """Vecteur dans le plan (y haut) -> code de section (fin : table fine des grands sprites)."""
     m = math.hypot(nx, ny)
+    if fin:   # face < 0,22 < 25 deg < 0,50 < 50 deg < 0,85 < 70 deg
+        if m < 0.22:
+            return 0
+        k = round(math.atan2(ny, nx) * (180.0 / math.pi) / (360 / AZ_FIN)) % AZ_FIN
+        return FIN0 + (0 if m < 0.50 else 1 if m < 0.85 else 2) * AZ_FIN + k
     if m < 0.30:
         return 0
     k = int(round(math.degrees(math.atan2(ny, nx)) / 45.0)) % 8
     return 1 + k if m < 0.72 else 9 + k
 
 
-def nearest_code(rgb):
-    return min(range(len(SECTIONS)), key=lambda i: sum((a - b) ** 2 for a, b in zip(rgb, SECTIONS[i][1])))
+def nearest_code(rgb, fin=False):
+    """fin : table fine des grands sprites (sinon les 17 sections d'origine)"""
+    return min(CODES_FIN if fin else CODES_17, key=lambda i: sum((a - b) ** 2 for a, b in zip(rgb, SECTIONS[i][1])))
 
 
 # ---------------------------------------------------------------- analyse des couleurs
@@ -295,6 +315,168 @@ def merge_small(codes, minsize, keep):
 
 
 # ---------------------------------------------------------------- programme principal
+def profondeur_parties(region, body, w, h):
+    """Profondeur maximale de chaque partie (distance 8-voisins au bord de la partie, sans plafond)."""
+    D, file = {}, []
+    for p in body:
+        x, y = p
+        for dx, dy in N8:
+            X, Y = x + dx, y + dy
+            if X < 0 or Y < 0 or X >= w or Y >= h or region.get((X, Y)) != region[p]:
+                D[p] = 1
+                file.append(p)
+                break
+    k = 0
+    while k < len(file):
+        p = file[k]
+        k += 1
+        x, y = p
+        for dx, dy in N8:
+            X, Y = x + dx, y + dy
+            if X < 0 or Y < 0 or X >= w or Y >= h:
+                continue
+            q = (X, Y)
+            if q not in D and q in region and region[q] == region[p]:
+                D[q] = D[p] + 1
+                file.append(q)
+    out = Counter()
+    for p in body:
+        if p in region:
+            out[region[p]] = max(out[region[p]], D.get(p, -1))
+    return out
+
+
+def masses_ombrage(w, h, ech, body, protected_px, col, ramp_of, ramps, L, counts, barrier):
+    """Masses d'un grand sprite (s > 1) : relief = EPAISSEUR du corps (distance chanfrein au bord ou a
+    un trait) + OMBRAGE a grande echelle de l'original (luminance ramenee a sa matiere, ecart type,
+    floutee : 3 passes de boite de rayon round(2 s) ; 2 s px par ecart type). Partage des eaux du haut
+    vers le bas : chaque lobe est un bassin ; les cols deviennent des frontieres de partie, comme les
+    traits. Deux bassins fusionnent si le moins marque est peu profond (< max(s ; 15 % de son sommet))
+    ou petit (< 80 s^2 px). Port exact de massesOmbrage() (coeur.js du jeu). Renvoie les frontieres."""
+    NP = w * h
+    rm, rs = [], []
+    for r in ramps:
+        tot = sum(counts[c] for c in r)
+        m = sum(L[c] * counts[c] for c in r) / tot
+        sd = math.sqrt(sum((L[c] - m) ** 2 * counts[c] for c in r) / tot) or 1.0
+        rm.append(m)
+        rs.append(max(sd, 6.0))
+    val, poids, dans = [0.0] * NP, [0.0] * NP, bytearray(NP)
+    for (x, y) in body:
+        i = y * w + x
+        dans[i] = 1
+        if (x, y) in protected_px:
+            continue
+        r = ramp_of[col[(x, y)]]
+        val[i] = (L[col[(x, y)]] - rm[r]) / rs[r]
+        poids[i] = 1.0
+    rb = max(1, js_round(2 * ech))
+
+    def boite(a):   # 3 passes horizontales puis verticales, bords a zero
+        t = list(a)
+        for n, pas, lignes, lpas in ((w, 1, h, w), (h, w, w, 1)):
+            for _ in range(3):
+                o = [0.0] * NP
+                for l in range(lignes):
+                    base = l * lpas
+                    acc = 0
+                    for i in range(-rb, rb + 1):
+                        if 0 <= i < n:
+                            acc += t[base + i * pas]
+                    for i in range(n):
+                        o[base + i * pas] = acc / (2 * rb + 1)
+                        sort, entre = i - rb, i + rb + 1
+                        if sort >= 0:
+                            acc -= t[base + sort * pas]
+                        if entre < n:
+                            acc += t[base + entre * pas]
+                t = o
+        return t
+
+    bv, bp = boite(val), boite(poids)
+    D = [1e9] * NP
+    for y in range(h):
+        for x in range(w):
+            if not dans[y * w + x] or (x, y) in barrier:
+                D[y * w + x] = 0
+    for y0, y1, sy, x0, x1, sx in ((0, h, 1, 0, w, 1), (h - 1, -1, -1, w - 1, -1, -1)):
+        voisins = ((-sx, 0, 1), (0, -sy, 1), (-sx, -sy, 1.4142), (sx, -sy, 1.4142))
+        for y in range(y0, y1, sy):
+            for x in range(x0, x1, sx):
+                i = y * w + x
+                if not D[i]:
+                    continue
+                for dx, dy, k in voisins:
+                    X, Y = x + dx, y + dy
+                    v = k if (X < 0 or Y < 0 or X >= w or Y >= h) else D[Y * w + X] + k
+                    if v < D[i]:
+                        D[i] = v
+    B = {}
+    for (x, y) in body:
+        i = y * w + x
+        B[(x, y)] = D[i] + 2 * ech * (bv[i] / bp[i] if bp[i] > 1e-9 else 0)
+    # partage des eaux par union-find, du plus clair au plus sombre (4 voisins)
+    ordre = sorted(body, key=lambda q: (-B[q], q[1] * w + q[0]))
+    lab_, parent, pic, aire = {}, [], [], []
+
+    def racine(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    AMIN = js_round(80 * ech * ech)
+
+    def plat(r, v):
+        return pic[r] - v < max(ech, 0.15 * pic[r])   # bassin peu marque
+
+    bord = set()
+    for p in ordre:
+        x, y = p
+        v = B[p]
+        voisins = []
+        for dx, dy in N4:
+            X, Y = x + dx, y + dy
+            if X < 0 or Y < 0 or X >= w or Y >= h:
+                continue
+            q = (X, Y)
+            if q in lab_:
+                rr = racine(lab_[q])
+                if rr not in voisins:
+                    voisins.append(rr)
+        if not voisins:
+            i = len(parent)
+            parent.append(i)
+            pic.append(v)
+            aire.append(1)
+            lab_[p] = i
+            continue
+        liste = sorted(voisins, key=lambda a: (-pic[a], a))
+        garde = [liste[0]]
+        for r in liste[1:]:
+            ok = next((g for g in garde if plat(r, v) or aire[r] < AMIN or plat(g, v) or aire[g] < AMIN), None)
+            if ok is not None:
+                a, b = racine(ok), racine(r)
+                if a != b:
+                    parent[b] = a
+                    aire[a] += aire[b]
+                    pic[a] = max(pic[a], pic[b])
+            else:
+                garde.append(r)
+        g2 = []
+        for g in garde:
+            rg = racine(g)
+            if rg not in g2:
+                g2.append(rg)
+        garde = g2
+        if len(garde) > 1:   # creux entre deux masses : frontiere
+            bord.add(p)
+            continue
+        lab_[p] = garde[0]
+        aire[garde[0]] += 1
+    return [p for p in body if p in bord]
+
+
 def neutre_detaille(neutral, w, h, ech, opq, line_px, protected_px, col, ramp_of, rid_of, ramps, L):
     """Grand sprite (s > 1) : le neutre en aplats effacait le dessin (meches, nuances). On ne retire que
     l'ombrage a GRANDE echelle : couleur de base de la matiere + ecart du pixel a la moyenne locale de
@@ -443,11 +625,18 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None, echelle=1):
     # les traits interieurs ne sont pas toujours fermes : on les epaissit d'1 px pour couper les
     # parties (fuites de 1-2 px), puis les pixels retires reviennent a la partie voisine
     barrier = set(line_px)
+    # traits epaissis d'1 px ; grand sprite : de round(s) px (disque), les traits de fourrure, meches
+    # et plis y ont des trous de plusieurs pixels
+    r_trait = aL(1, ech)
+    vois_trait = N8 if r_trait == 1 else [(dx, dy) for dy in range(-r_trait, r_trait + 1) for dx in range(-r_trait, r_trait + 1)
+                                          if (dx or dy) and dx * dx + dy * dy <= r_trait * r_trait]
     for (x, y) in line_px:
-        for dx, dy in N8:
+        for dx, dy in vois_trait:
             q = (x + dx, y + dy)
             if q in segm:
                 barrier.add(q)
+    if ech > 1:
+        barrier.update(masses_ombrage(w, h, ech, body, protected_px, col, ramp_of, ramps, L, counts, barrier))
     region = {}
     rid = 0
     for p in body:
@@ -503,7 +692,7 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None, echelle=1):
     absorb(aS(12, ech))
     # pixels de la bordure epaissie : rendus a la partie voisine de meme matiere (sinon la plus proche)
     todo = [p for p in body if p not in region]
-    for _ in range(4):
+    for _ in range(aL(4, ech)):
         rest = []
         for p in todo:
             x, y = p
@@ -540,6 +729,7 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None, echelle=1):
     dmax = Counter()
     for p, (d, _, _) in near.items():
         dmax[region[p]] = max(dmax[region[p]], d)
+    dmax_partie = profondeur_parties(region, body, w, h) if ech > 1 else None
 
     # indice d'ombrage : ecart de luminance a la moyenne de la rampe, lisse dans la partie
     rmean, rstd = {}, {}
@@ -583,7 +773,9 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None, echelle=1):
     gpad = aL(GPAD, ech)
     for r in set(region.values()):
         members = par_region[r]
-        rad = max(1.2 * ech, min(3.0 * ech, dmax[r] * 0.6))
+        # grand sprite : dome sur TOUTE la partie (rayon = moitie de sa profondeur reelle), plusieurs
+        # bagues du bord vers le centre ; sinon bombe limite au bord (3 px)
+        rad = max(1.2 * ech, 0.5 * dmax_partie[r]) if dmax_partie else max(1.2 * ech, min(3.0 * ech, dmax[r] * 0.6))
         # flou de la partie sur un rectangle autour d'elle (meme resultat que sur toute l'image tant
         # que la marge couvre son etalement ; coeur.js fait de meme)
         bx0, by0 = min(x for x, _ in members), min(y for _, y in members)
@@ -618,14 +810,14 @@ def analyse(im, garder=(), rampes=(), peint=False, taille_ref=None, echelle=1):
         ws = W_SHADE * (0.6 if peint else 1.0)  # image peinte : ombrage riche, on le suit moins
         nx = gx / gn * gk + wp * px_ + ws * sh * lx
         ny = gy / gn * gk + wp * py_ + ws * sh * ly
-        codes[p] = quantize(nx, ny)
+        codes[p] = quantize(nx, ny, ech > 1)
     # contour exterieur : rasant, tourne vers l'exterieur ; traits interieurs : comme leurs voisins
     outline = set()
     for p in line_px:
         d, vx, vy = out_vec[p]
         if d <= 2.3 * ech:
             outline.add(p)
-            codes[p] = quantize(vx / (math.hypot(vx, vy) or 1), -vy / (math.hypot(vx, vy) or 1))
+            codes[p] = quantize(vx / (math.hypot(vx, vy) or 1), -vy / (math.hypot(vx, vy) or 1), ech > 1)
     for p in protected_px:
         codes.setdefault(p, None)
     pending = [p for p in opq if codes.get(p) is None]
@@ -750,7 +942,7 @@ def save_maps(im, opq, neutral, codes, stem):
     return paths
 
 
-def normals_from_sections(sec_path, stem):
+def normals_from_sections(sec_path, stem, fin=False):
     sec = Image.open(sec_path).convert("RGBA")
     w, h = sec.size
     s = sec.load()
@@ -761,7 +953,7 @@ def normals_from_sections(sec_path, stem):
             if s[x, y][3] >= 128:
                 c = s[x, y][:3]
                 if c not in cache:
-                    cache[c] = nearest_code(c)
+                    cache[c] = nearest_code(c, fin)
                 nor.putpixel((x, y), encode_normal(section_normal(cache[c])) + (255,))
     nor.save(stem + ".normales.png")
     return stem + ".normales.png", {SECTIONS[v][0] for v in cache.values()}
@@ -1018,6 +1210,12 @@ def carte_cj(im, normales, neutre, pad=GEO_PAD, echelle=1):
     S = set(opq)
     D = {p: g[p[0] + pad, p[1] + pad][0] // 16 for p in opq}
     sec = {p: nm[p][:3] for p in opq}
+    if ech > 1:
+        # grand sprite (table fine, 3 bagues) : l'exposition passe d'une bague a l'autre dans la meme
+        # direction (la rasante continue en inclinee), sinon chaque bague etroite s'eteint tout de suite
+        for p in opq:
+            nx, ny = nm[p][0] / 255 * 2 - 1, nm[p][1] / 255 * 2 - 1
+            sec[p] = -2 if math.hypot(nx, ny) < 0.05 else js_round(math.atan2(ny, nx) * 180 / math.pi / 30) % 12
     pente = {}
     for p in opq:
         v = math.hypot(nm[p][0] / 255 * 2 - 1, nm[p][1] / 255 * 2 - 1) / 0.93
@@ -1420,7 +1618,8 @@ def main():
             print(p)
         return
     if a.depuis_sections:
-        p, used = normals_from_sections(a.depuis_sections, stem)
+        # grand sprite (s > 1) : couleurs de la table fine (3 bagues x 12 azimuts)
+        p, used = normals_from_sections(a.depuis_sections, stem, echelle_sprite([im]) > 1)
         print(p)
         print("sections lues :", ", ".join(sorted(used)))
         for p in ecrire_cj(stem, im=im):
